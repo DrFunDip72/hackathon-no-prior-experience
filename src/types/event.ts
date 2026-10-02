@@ -33,8 +33,9 @@ export interface CampusEvent {
   verified?: boolean;
   /** API: graduate schools and degree programs presenting. Never shown as employer logos. */
   programs?: string[];
-  /** API: people named on the listing. Takes the place of attendeeIds when present. */
+  /** API: people named on the listing, already shaped for the UI. Takes the place of attendeeIds when present. */
   people?: Person[];
+  /** Sign-up link, when the source has one (distinct from sourceUrl, which is the listing page). */
   registrationUrl?: string;
   rsvpRequired?: boolean;
   /** ISO instant (UTC). */

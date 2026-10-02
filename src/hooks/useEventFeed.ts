@@ -46,8 +46,9 @@ export function useEventFeed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt, profileKey]);
 
-  // Saved events that aren't in the ranked feed (outside its window, or no longer relevant) are loaded by id,
-  // so they stay in "My plan". Only ids we haven't loaded yet are requested.
+  // Saved events that dropped out of the ranked feed (outside its window, or relevant_only) are loaded by id,
+  // so "My plan" doesn't silently lose them. Each id is requested once per page load; `retry` clears that.
+  // Sample data never needs this (nothing drops out).
   const [saved, setSaved] = useState<CampusEvent[]>([]);
   const [savedError, setSavedError] = useState(false);
   const requested = useRef(new Set<string>());
@@ -59,14 +60,12 @@ export function useEventFeed() {
     if (!missingKey) return;
     const ids = missingKey.split(',');
     ids.forEach((id) => requested.current.add(id));
-    let alive = true;
     setSavedError(false);
+    // No cancel-on-cleanup: missingKey empties on the very next render (the ids are now requested),
+    // and that must not drop the response. Setting state late is harmless.
     fetchEventsByIds(ids).
-    then((result) => alive && setSaved((prev) => [...prev.filter((p) => !ids.includes(p.id)), ...result])).
-    catch(() => alive && setSavedError(true));
-    return () => {
-      alive = false;
-    };
+    then((result) => setSaved((prev) => [...prev.filter((p) => !ids.includes(p.id)), ...result])).
+    catch(() => setSavedError(true));
   }, [missingKey]);
 
   const googleConnected = Boolean(state.connections.google);
@@ -88,6 +87,8 @@ export function useEventFeed() {
     return API_URL ? scored : scored.sort((a, b) => b.score - a.score);
   }, [raw, profile, googleConnected]);
 
+  // Saved events loaded by id feed only "My plan" below, never "For you": they exist so a saved event
+  // doesn't vanish when it drops out of the ranked feed, not to compete for feed placement.
   const savedScored = useMemo(() => {
     const terms = getProfileTerms(profile);
     const now = new Date();

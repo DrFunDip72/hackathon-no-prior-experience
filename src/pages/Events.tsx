@@ -8,10 +8,12 @@ import { EventCard } from '../components/events/EventCard';
 import { EventDetail } from '../components/events/EventDetail';
 import { EventFilters } from '../components/events/EventFilters';
 import { EventSkeleton } from '../components/events/EventSkeleton';
+import { NoGoodMatches } from '../components/events/NoGoodMatches';
 import { GoogleIcon } from '../components/ui/GoogleIcon';
 import { useSession } from '../contexts/SessionContext';
 import { useEventFeed } from '../hooks/useEventFeed';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { GOOD_MATCH } from '../utils/matching';
 
 type Tab = 'forYou' | 'plan';
 
@@ -27,6 +29,10 @@ export function Events() {
   const list = tab === 'forYou' ? feed.items : feed.planned;
   const selected = list.find((i) => i.event.id === selectedId) ?? list[0] ?? null;
   const added = new Set(state.addedEventIds);
+  // Same thresholds as matchLabel: nothing reaching "Good match" means nothing better than "Worth a look".
+  // An event with no match reasons (shown as "—") counts as no match, not a weak one.
+  const topScore = Math.max(0, ...list.filter((i) => i.reasons.length > 0).map((i) => i.score));
+  const noGoodMatches = tab === 'forYou' && list.length > 0 && topScore < GOOD_MATCH;
 
   useEffect(() => {
     if (!sheetOpen) return;
@@ -198,6 +204,8 @@ export function Events() {
                   </>
               }
               </div> :
+            noGoodMatches ?
+            <NoGoodMatches threshold={GOOD_MATCH} /> :
 
             list.map((item, i) =>
             <EventCard
@@ -215,7 +223,7 @@ export function Events() {
           </section>
 
           <aside aria-label="Event details" className="hidden lg:block">
-            {detail && !feed.loading &&
+            {detail && !feed.loading && !noGoodMatches &&
             <div className="sticky top-20 h-[calc(100vh-6rem)] overflow-hidden rounded-xl border border-line bg-white">{detail}</div>
             }
           </aside>

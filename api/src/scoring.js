@@ -15,12 +15,16 @@ export function scoreEvent(event, profile, { now = new Date(), windowDays = DEFA
   const targets = new Map((profile.target_companies ?? []).map((c) => [companyKey(c), canonicalCompany(c)]));
   const matchedCompanies = [...new Set((event.companies ?? []).map(canonicalCompany))].filter((c) => targets.has(c.toLowerCase()));
 
-  // Profile fields match event fields loosely; roles match as keywords in the fields, title or description.
+  // Profile fields match event fields loosely; roles match as keywords in the fields, title or
+  // description, OR word-aware against the event's own fields (so "Product Manager" credits an event
+  // classified "product" even though that exact two-word phrase never appears in its text).
   const eventFields = (event.fields ?? []).map(lower);
   const haystack = lower([...eventFields, event.title, event.description ?? ''].join(' '));
   const matchedFields = [
     ...(profile.fields ?? []).filter((f) => f.trim() && eventFields.some((ef) => termMatch(f, ef))),
-    ...(profile.target_roles ?? []).filter((r) => r.trim() && haystack.includes(lower(r)))
+    ...(profile.target_roles ?? []).filter(
+      (r) => r.trim() && (haystack.includes(lower(r)) || eventFields.some((ef) => termMatch(r, ef)))
+    )
   ].map(lower).filter((v, i, all) => all.indexOf(v) === i);
 
   const start = new Date(event.start_at ?? event.start);

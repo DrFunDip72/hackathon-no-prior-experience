@@ -39,7 +39,7 @@ From the front-end team (Doorway) to the events API owner. Written 2026-10-02 af
 - P1-1, P1-2: UI built, hidden until data arrives. `people` feeds "People to meet", the "Meet X and N more" line and the Google Calendar description; `registration_url` adds a "Register" button (new tab, `noopener`); `rsvp_required` and `registration_deadline` show "RSVP required" / "Register by Oct 5, 5:00 PM" tags.
 - P1-3: `GET /events?ids=` consumed: "My plan" loads saved events missing from the ranked feed (no score, labelled as saved). `GET /events/:id` is not used yet (no shareable event route in the app).
 - P1-4: consumed. `GET /companies` is fetched once per page load; `brand_color`, `industry` (and `logo_url` once set) override `src/data/employers.ts`, which stays the fallback.
-- P1-5 is now more visible: the team's match colors (<25% red, 25–50% orange, 50–65% yellow, >65% green) on `round(score * 3)` make most non-company matches orange or red (a 2-field match scores ~8, shown as 24%). A `percent` from the API would fix the scale.
+- **P1-5 (`percent`) is now our top request.** Because `score` isn't a percentage, the UI shows plain labels on `round(score * 3)` instead of a number: "Strong match" (55+), "Good match" (30+), "Worth a look" (below). Showing it as a percent made good matches look bad (a 2-field match scores ~8, which reads as 24%). The "No good matches right now" state (P1-8) uses the same 30 cut-off. A real `percent` (0 to 100) would let us show a number honestly and set those thresholds on a known scale.
 
 ---
 
@@ -242,6 +242,22 @@ interface Event { /* … */
 { majors?: string[]; class_year?: string; employment_type?: 'internship' | 'full_time'; exclude_event_ids?: string[]; types?: string[]; limit?: number }
 ```
 
+**P1-8. `POST /subscriptions`: email alerts when a good match shows up.** The Events page now shows a "No good matches right now" state with an email field when nothing in the feed reaches "Good match" (UI score 30, i.e. API `score` 10). There's nowhere to send that email yet, so it's saved to `localStorage` only (`cc_match_subscriptions`, client-side, never sent anywhere) with an honest "coming soon" note on the page.
+```ts
+POST /subscriptions
+{ email: string; threshold: number /* UI score, e.g. 30 = "Good match" */; profile: <same contract as POST /recommendations> }
+→ { id: string }
+```
+Why: closes the loop on a weak-match week instead of leaving a dead end. Suggest: store the profile contract (not a user id, since we don't send one), re-run `recommend()` against it on a schedule (daily?), and email when a result clears `threshold`. No urgency for today's demo — the local-only version covers it.
+
+### Investigation: why a Product Manager profile scored low (~29%)
+
+Asked to check why a PM-focused profile got weak matches while others scored well. Three things, in order of how much each explains it:
+
+1. **Found and fixed a real classifier bug** (`api/src/classify.js`): the `product` field rule included a bare `\bpm\b`, meant to catch "PM" as in Product Manager. It also matches "PM" as in the clock — e.g. "Programs at 7:00 and 7:30 PM." on an unrelated FHE social event. Checked live data: **18 of 59 upcoming events were tagged `product`**, and the ones we sampled (`Amazing Race FHE`, `Craft Night: Paper Dinos`, `Homecoming Dance`, ...) are evening campus activities, not product-management content — their only "pm" is a start time. This doesn't explain a *low* score directly (if anything it's noise elsewhere), but it's a confirmed, cheap fix: field classification now strips clock-time mentions (`7:00 PM`, `7-9pm`, ...) before matching, so a bare time no longer triggers `product`. Added two regression tests (`api/test/scoring.test.js`) using the real "Amazing Race FHE" text. **Needs a Railway deploy of `api/` to take effect** — this session has no Railway access.
+2. **Found and fixed a real scoring gap** (`api/src/scoring.js`): `target_roles` (e.g. "Product Manager") only matched if that exact phrase appeared verbatim in an event's title/description. Since `classify.js` only ever tags the canonical field `"product"`, never the literal phrase "product manager", a PM student's role almost never matched even a correctly-classified product event. Now also matches word-aware against the event's own `fields` (same logic `profile.fields` already used), so "Product Manager" credits an event tagged `product`. Also needs a deploy.
+3. **Largely a data gap, not a mapping bug.** `toApiProfile` (`src/utils/backend.ts`) maps the Doorway profile reasonably: industries like "Product & Design" split into `["product", "design"]`, `lookingFor.roleTypes` and `education.major` flow into `fields`/`target_roles`. The real shortage is upstream: of the 11 companies currently live (Redo, Neighbor, Waystar, Qualtrics, Ensign Peak Advisors, HXP, Scalar, Layton Construction, Larry H. Miller Senior Health, Swire Coca-Cola, Sodexo, Disney College Program), none are notably PM-recruiting employers, so a PM student who targets typical PM employers (e.g. Adobe, Qualtrics, Domo — all in `src/data/employers.ts` but not yet in the live event companies list) gets few or no company matches, which dominates the score (+10 each vs. +3 per field). This is the P2-1 "more sources" gap, not something fixable from the front end.
+
 ### P2: later
 
 **P2-1. More sources** (in rough priority order):
@@ -283,6 +299,10 @@ interface Event { /* … */
 - `relevant_only: true`, results kept in API order, one request per page load or ranking-relevant profile change, error state with Retry.
 - `reason` is the headline on every card, detail sheet and the Profile card.
 - ~~Matched companies are sorted first on the client~~ (removed after P0-3; the API order is used).
-- "People to meet" is hidden when there's no data, and the top card shows attending companies instead.
+- "People to meet" populates from `people` when the API provides any; it's hidden when empty, and the top card shows attending companies instead.
 - All dates and times are formatted in America/Denver (cards, detail, "Your day", Profile card), and the Google Calendar link passes `ctz=America/Denver`.
 - `source_url` is shown as "View original listing" and added to the Google Calendar event.
+- `registration_url` shows a "Register" button; `verified: false` shows an "Unconfirmed" tag rather than hiding the event.
+- `GET /companies` is fetched once per page load for employer colors and industries; `GET /events?ids=` keeps a saved event in "My plan" after it drops out of the ranked feed.
+- Match scores show as "Strong match" / "Good match" / "Worth a look" instead of a percentage, everywhere a score shows (see P1-5).
+- A "No good matches right now" state with a local-only email signup when nothing reaches "Good match" (see P1-8).

@@ -71,6 +71,26 @@ test('field matching is word-aware and relevant_only drops unmatched noise', () 
   assert.deepEqual(recommend([noise, hackathon], p, { now, relevantOnly: true }).map((r) => r.event.title), ['CS Hackathon']);
 });
 
+test('classify does not mistake a clock time for the Product Manager abbreviation', async () => {
+  const { classify } = await import('../src/classify.js');
+  // Real example from the live calendar: an FHE activity whose only "pm" is its start time.
+  const fhe = classify('Amazing Race FHE', 'Families welcome. Programs at 7:00 and 7:30 PM. Refreshments provided.');
+  assert.ok(!fhe.fields.includes('product'), 'a clock time alone should not tag an event "product"');
+
+  const pm = classify('Product Night', 'Meet our PM team and learn what product managers do.');
+  assert.ok(pm.fields.includes('product'), 'a real PM mention should still tag the event "product"');
+});
+
+test('a target role matches an event by its classified field, not just a literal phrase', () => {
+  const productEvent = {
+    title: 'Qualtrics Product Night', start_at: '2026-10-05T18:00:00-06:00', type: 'networking',
+    companies: ['Qualtrics'], fields: ['product'], description: ''
+  };
+  // "Product Manager" never appears verbatim in the event text, only the classified field "product".
+  const p = { target_companies: [], target_roles: ['Product Manager'], fields: [] };
+  assert.deepEqual(scoreEvent(productEvent, p, { now }).matched_fields, ['product manager']);
+});
+
 test('in-progress events stay in the window and companies lead with matches', () => {
   const live = { ...hackathon, end_at: '2026-10-02T20:00:00-06:00', companies: ['Waystar', 'Neighbor', 'Redo'] };
   const later = new Date('2026-10-02T15:00:00-06:00');
@@ -99,4 +119,39 @@ test('people are normalized with stable ids and only kept when named', () => {
   assert.match(people[0].id, /^per_[0-9a-f]{8}$/);
   assert.deepEqual(people[0].tags, ['product']);
   assert.equal(people[0].kind, 'recruiter');
+});
+
+test('submit token guard fails closed and compares exactly', async () => {
+  const { checkSubmitToken, createRateLimiter } = await import('../src/guard.js');
+  assert.equal(checkSubmitToken({}, undefined).status, 503);
+  assert.equal(checkSubmitToken({ 'x-submit-token': 'nope' }, 'secret').status, 401);
+  assert.equal(checkSubmitToken({}, 'secret').status, 401);
+  assert.equal(checkSubmitToken({ 'x-submit-token': 'secret' }, 'secret').ok, true);
+  assert.equal(checkSubmitToken({ authorization: 'Bearer secret' }, 'secret').ok, true);
+  const allow = createRateLimiter({ max: 2, windowMs: 1000 });
+  assert.deepEqual([allow('a', 0), allow('a', 1), allow('a', 2), allow('b', 2), allow('a', 1500)], [true, true, false, true, true]);
+});
+
+test('parseExtractionList reads arrays, wrapped objects, and fenced output', async () => {
+  const { parseExtractionList } = await import('../src/extract.js');
+  assert.equal(parseExtractionList('```json\n[{"title":"A"},{"title":"B"}]\n```').length, 2);
+  assert.equal(parseExtractionList('{"events":[{"title":"A"}]}').length, 1);
+  assert.equal(parseExtractionList('[]').length, 0);
+  assert.equal(parseExtractionList('no events here'), null);
+});
+
+test('bulk rows are unverified, keep the summary not raw text, and drop past or undated events', async () => {
+  const { buildBulkRows } = await import('../src/extract.js');
+  const now = new Date('2026-10-02T12:00:00-06:00');
+  const { rows, skipped } = buildBulkRows([
+    { title: 'Qualtrics Info Session', start: '2026-10-08T18:00:00-06:00', type: 'info_session', companies: ['Qualtrics'], url: 'https://example.com/rsvp', description: 'Product roles overview.' },
+    { title: 'Old Fair', start: '2026-09-01T10:00:00-06:00' },
+    { title: 'No date' }
+  ], { source: 'slack', now });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].verified, false);
+  assert.equal(rows[0].source, 'slack');
+  assert.equal(rows[0].registration_url, 'https://example.com/rsvp');
+  assert.equal(rows[0].description, 'Product roles overview.');
+  assert.equal(skipped.length, 2);
 });

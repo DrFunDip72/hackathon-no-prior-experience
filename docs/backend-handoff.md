@@ -25,7 +25,7 @@ Hackathon context: one-day build, favor working end to end, keep changes minimal
 | Keyword tagging (type, companies, fields) | `api/src/classify.js` (`KNOWN_COMPANIES` is where new employers go) |
 | LLM extraction for `/submit` | `api/src/extract.js` |
 | Seed data | `api/src/seed-events.js`, `seed-companies.js`, `seed.js` |
-| Tests | `api/test/*.test.js`, run `cd api && npm test` (21 tests) |
+| Tests | `api/test/*.test.js`, run `cd api && npm test` (24 tests) |
 | Front-end adapter | `src/utils/backend.ts`, `src/hooks/useEventFeed.ts` |
 
 Note: `api/parse-resume.ts` is the front end's Vercel function (resume parsing with Gemini). It shares the `api/` folder with this backend by accident of history; `.vercelignore` keeps the backend files out of Vercel. Don't move either without updating that file.
@@ -42,6 +42,7 @@ Note: `api/parse-resume.ts` is the front end's Vercel function (resume parsing w
   - `INGEST_BYU=1`: BYU calendar ingest on boot, then every 24 h.
   - `INGEST_SHEET_BASE`: the published career-services sheet (`https://docs.google.com/spreadsheets/d/e/<id>`); auto-discovers every tab, refreshed every 6 h. `INGEST_SHEET_URLS`: optional explicit CSV links.
   - `INGEST_CS=1`: CS department ingest every 6 h.
+  - `SUBMIT_TOKEN`: shared secret required by `/submit` and `/submit/bulk` (LLM cost protection; the endpoints are off without it). The owner uses it on the `/paste` page.
   - **Not set yet:** `ANTHROPIC_API_KEY` (needed by `/submit` and any LLM-based source), optional `EXTRACT_MODEL` (default `claude-haiku-4-5-20251001`).
 - **The start command** (`api/package.json`) runs migrations (`schema.sql`, idempotent, includes data cleanup), seeds if `SEED_ON_START`, then starts the server, which kicks off the ingest jobs.
 - **The database is only reachable from inside Railway** (internal hostname), so you can't connect from a laptop. To inspect data, use the API (`/events`, `/companies`) or, if you need SQL, enable a TCP proxy on the Postgres service and use the public URL, or run a one-off job inside the service. `railway ssh` needs an SSH key registered to your Railway account.
@@ -69,7 +70,7 @@ There is no CI for the API: deploys are manual with the command above. Commit an
 
 ## Not done / next steps (rough priority)
 1. **Get an Anthropic API key** (https://console.anthropic.com, add a few dollars of credit), set it on `doorway-api` yourself with `railway variables --service doorway-api --set ANTHROPIC_API_KEY=...`, then test `POST /submit` with a sample email and a flyer image. Use only fake or public event text when testing. The key also unblocks the sources below.
-2. **BYU IS Slack source** (jobs/internships channel and `a_team`): lots of career-fair and info-session posts. Needs a Slack app a workspace admin approves (read-only on those channels), or a Workflow Builder emoji-trigger that posts to `/submit`; both need the LLM key since posts are freeform. Store only the extracted event, not poster names or raw messages. Job listings don't fit the events model and would need their own table and endpoint.
+2. **BYU IS Slack source** (jobs/internships channel and `a_team`): career-fair and info-session posts. The workspace blocks custom Slack apps, so the owner copies channel text into the `/paste` page (`https://doorway-api-production-db29.up.railway.app/paste`), which calls `POST /submit/bulk` (built, deployed, tested up to the LLM call; needs `ANTHROPIC_API_KEY`). Only the extracted event is stored, never poster names or raw messages. If a Slack admin ever approves a read-only app, add a receiver that feeds the same extraction (`extractEvents` + `buildBulkRows` in `api/src/extract.js`). Job listings don't fit the events model and would need their own table and endpoint (not built; events only for now).
 3. **More sources:** Rollins Center (https://marriott.byu.edu/cet), club pages, college calendars. They use page text plus LLM extraction. `source` values `rollins`, `clubs`, `byusa` are reserved.
 4. **People per event:** `people` exists on every event and is empty. Fill it only from names public on a listing or employer-submitted. The shape is in `api.md`.
 5. **Remaining wishlist** (`api-requests.md`, P1/P2): `percent` score on recommendations, audience/roles-hiring fields, extra profile fields in scoring (`majors`, `employment_type`, `exclude_event_ids`, `types`, `limit`), `GET /sources`, freshness on `/health`, logistics fields, better `type`/`fields` classification (44% of calendar events are `other`; "Amazing Race FHE" gets tagged `product`).

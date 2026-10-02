@@ -154,7 +154,7 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
           href={event.registrationUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-navy px-4 py-2 text-sm font-medium text-navy transition-colors duration-150 hover:bg-navy-50">
+          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-navy bg-white px-4 py-2.5 text-sm font-medium text-navy transition-colors duration-150 hover:bg-navy-50">
 
             Register
             <ExternalLinkIcon className="h-3.5 w-3.5" aria-hidden="true" />

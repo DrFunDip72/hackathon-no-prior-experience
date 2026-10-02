@@ -97,12 +97,23 @@ Ranks events for one student. Request body is the **profile contract** plus opti
 
 Response: `Recommendation[]`, sorted by `score` descending, events scoring below 1 excluded.
 
+### `POST /submit/bulk`
+Pulls **many** events out of one pasted dump (e.g. messages copied from a Slack channel) using the LLM, and stores them. **Not for the public front end**: it needs the `x-submit-token` header (or `Authorization: Bearer <token>`) matching the server's `SUBMIT_TOKEN`, and is limited to 30 requests per hour per client. With no `SUBMIT_TOKEN` configured it is off (503).
+
+Body: `{ "text": "<pasted messages>", "source": "slack" }` (`source` optional, default `user_submission`; max ~200,000 characters). Response: `{ "saved": n, "skipped": ["Old Fair: already past", ...], "events": Event[] }`.
+- Only career events are kept (career fairs, info sessions, networking, hackathons, case competitions, tabling, speakers); job postings and chatter are ignored. Dates without a year mean the next occurrence.
+- Stored events are `verified: false` and carry the model's short summary as `description` plus the message's link as `registration_url`. **Poster names and the raw messages are never stored.** Past events and events with no readable date are skipped and reported.
+- Errors: `401` wrong/missing token, `503` token or `ANTHROPIC_API_KEY` not configured, `422` unreadable model output, `429` rate limited.
+
+### `GET /paste`
+A small web page (`api/src/paste.html`) for the owner: enter the submit token once (kept in that browser), paste Slack messages, click Extract. It calls `/submit/bulk` with `source: "slack"`. Not linked from anywhere; `noindex`.
+
 ### `POST /submit`
 Turns pasted text (an email, a flyer's text) or a flyer photo into a stored event using an LLM.
 
 Body: `{ "text": "..." }` or `{ "image_base64": "<base64>", "media_type": "image/jpeg" }` (optionally both).
 Response: `{ "event": Event, "extracted": true|false }`. `extracted: false` means the model's output could not be parsed, so the event was stored with empty `companies`/`fields` and the first line of the text as its title.
-Errors: `422` if no title and start time could be found; `500` if `ANTHROPIC_API_KEY` is not configured on the server (**currently not set**, so `/submit` will fail until it is).
+Needs the same `x-submit-token` as `/submit/bulk`. Errors: `401`/`503`/`429` as above, `422` if no title and start time could be found, and `503` if `ANTHROPIC_API_KEY` is not configured on the server (**currently not set**, so both submit endpoints return 503 until it is).
 Submitted events have `source: "user_submission"`. Body size limit is about 12 MB.
 
 ---
@@ -137,7 +148,7 @@ type EventType = 'career_fair' | 'hackathon' | 'info_session' | 'lecture' | 'tab
                | 'club_event' | 'case_competition' | 'networking' | 'other';
 
 type Source = 'byu_calendar' | 'cs_dept' | 'careerlaunch' | 'rollins' | 'byusa'
-            | 'clubs' | 'handshake_manual' | 'email' | 'user_submission';
+            | 'clubs' | 'handshake_manual' | 'email' | 'slack' | 'user_submission';
 
 interface EventPerson {
   id: string;                    // "per_<8 hex>", stable per name + company
@@ -178,11 +189,12 @@ Wiring already exists; extend it rather than duplicating it.
 | File | Role |
 | --- | --- |
 | [`src/utils/backend.ts`](../src/utils/backend.ts) | Calls `POST /recommendations` and `GET /events?ids=`, loads `GET /companies` once per page load, maps responses to the UI's `CampusEvent` type, and maps the Doorway `Profile` onto the profile contract. Exports `API_URL`, `fetchRecommendedEvents(profile)` and `fetchEventsByIds(ids)`. |
-| [`src/hooks/useEventFeed.ts`](../src/hooks/useEventFeed.ts) | Uses `fetchRecommendedEvents` when `VITE_API_URL` is set, otherwise falls back to the simulated sample events (`api.fetchEvents`). Loads saved "My plan" ids missing from the feed with `fetchEventsByIds`. |
+| [`src/hooks/useEventFeed.ts`](../src/hooks/useEventFeed.ts) | Uses `fetchRecommendedEvents` when `VITE_API_URL` is set, otherwise falls back to the simulated sample events (`api.fetchEvents`). Loads saved "My plan" ids missing from the feed with `fetchEventsByIds`, once per id per page load (`retry` tries again). |
+| [`src/utils/matching.ts`](../src/utils/matching.ts) | `scoreEvent` uses the API's score and reasons when the event carries `apiScore`, and the event's `people` when present. `matchLabel` turns a score into "Strong match" / "Good match" / "Worth a look". |
 | [`src/utils/dates.ts`](../src/utils/dates.ts) | All date/time formatting, in America/Denver via `Intl`. |
-| [`src/components/events/EventBadges.tsx`](../src/components/events/EventBadges.tsx) | "Happening now", "Unconfirmed", "RSVP required", "Register by …" tags, each shown only when the data supports it. |
-| [`src/utils/matching.ts`](../src/utils/matching.ts) | `scoreEvent` uses the API's score and reasons when the event carries `apiScore`. |
-| [`src/types/event.ts`](../src/types/event.ts) | `CampusEvent` has optional `startAt`, `apiScore`, `apiReasons`, `apiReason`. `ScoredEvent` has optional `reason`. |
+| [`src/components/events/EventBadges.tsx`](../src/components/events/EventBadges.tsx) | The one place for status tags: "Happening now", "Unconfirmed", "RSVP required", "Register by …", each shown only when the data supports it. |
+| [`src/components/events/NoGoodMatches.tsx`](../src/components/events/NoGoodMatches.tsx) | Replaces the "For you" list when nothing is better than "Worth a look". |
+| [`src/types/event.ts`](../src/types/event.ts) | `CampusEvent` has optional `startAt`, `apiScore`, `apiReasons`, `apiReason`, `verified`, `programs`, `people`, `registrationUrl`, `rsvpRequired`, `registrationDeadline`. `ScoredEvent` has optional `reason`. `PersonKind` includes `'Host'`. |
 
 **Configuration:** set `VITE_API_URL` (build-time, Vite) to the base URL above. See `.env.example`. On Railway, set it as a variable on the front-end service; locally, copy `.env.example` to `.env.local`. Without it the app runs on sample data, which is useful for offline UI work.
 
@@ -190,11 +202,15 @@ Wiring already exists; extend it rather than duplicating it.
 - `type`: `career_fair`→Career fair, `info_session`→Info session, `hackathon`/`case_competition`→Workshop, `lecture`→Talk, `club_event`→Club, `networking`/`tabling`→Networking, `other`→Talk.
 - `source`→calendar source filter: `careerlaunch`/`rollins`/`handshake_manual`→`byu-careers`; `clubs`/`byusa`→`byu-clubs`; everything else→`byu-departments`.
 - `source_url`→`sourceUrl` (the "View original listing" link in the detail sheet and the Google Calendar event).
-- `companies`→`employerIds`, in the API's order (no client re-sort). Colors, industries and logos come from `GET /companies`, falling back to `src/data/employers.ts`; unknown companies get a gray tile with initials.
+- `companies`→`employerIds`, in the API's order (no client re-sort). Colors, industries and logos come from `GET /companies` (employers only, fetched once per page load, retried on the next fetch if it failed), falling back to `src/data/employers.ts`; unknown companies get a gray tile with initials. `logo_url` is null for every company as of this writing.
 - `programs`→`programs`, shown as a "Programs: …" line in the detail panel, never as logos.
-- `verified: false`→"Unconfirmed" tag. `people`→`people` ("People to meet", "Meet X"), hidden when empty. `registration_url`→"Register" button; `rsvp_required`/`registration_deadline`→tags. All hidden while null.
 - `fields`→`tags` and `industries`.
-- The score shown in the UI is `round(apiScore * 3)` capped at 99, because the API score tops out near 30. Colors: <25% red, 25–50% orange, 50–65% yellow, >65% green. Saved events loaded by id have no score and show "—".
+- `people`→`people` (mapped to the UI's `Person` shape; `kind` maps 1:1, including `host`→`'Host'`). `scoreEvent` uses it in place of the sample-data `attendeeIds` lookup, so "People to meet" and the hero card's "Meet X and N more" populate once a listing names anyone. Hidden while empty.
+- `registration_url`→`registrationUrl` (a "Register" button in the event detail sheet). `rsvp_required`/`registration_deadline`→"RSVP required" / "Register by …" tags. All hidden while null.
+- `verified: false`→an "Unconfirmed" tag on the card and detail sheet (not hidden, since hiding would make the student's plan silently shrink).
+- Scores: `round(apiScore * 3)` capped at 99, because the API score tops out near 30. It is not a true percentage, so the UI never shows it as one: `matchLabel` shows "Strong match" (55+), "Good match" (30+), or "Worth a look", and "—" when an event has no match reasons. Same labels on event cards, the detail sheet, Profile's "Events that fit this profile" and the homepage preview. Switch to the API's `percent` once it ships (requested in `api-requests.md`).
+- When nothing in "For you" reaches "Good match" (score 30), the Events page shows a "No good matches right now" state with a local-only email signup instead of the list (`NoGoodMatches.tsx`); it says plainly that no alerts are sent yet. See `api-requests.md` (P1-8) for the `POST /subscriptions` it stands in for.
+- `GET /events?ids=` keeps a saved event in "My plan" after it drops out of the ranked `/recommendations` feed (outside the window, or filtered by `relevant_only`). These events have no ranking, so they show "—" instead of a label. They feed only "My plan", never "For you".
 
 **Known gaps and gotchas**
 - `people` is empty for every event today, so "People to meet" stays hidden and the top card shows the attending companies instead.
@@ -244,7 +260,7 @@ Deploy (from the repo root, with the Railway CLI linked to the project):
 railway up ./api --path-as-root --service doorway-api --ci
 ```
 
-`--path-as-root` matters: without it the CLI uploads the whole repo and builds the front end instead. The start command runs migrations, optionally seeds (`SEED_ON_START`), then starts the server. Service variables: `DATABASE_URL` (reference to the Postgres service), `SEED_ON_START`, `INGEST_BYU`, `INGEST_SHEET_BASE` (published sheet base URL), `INGEST_SHEET_URLS` (optional explicit CSV links), `INGEST_CS`, optional `SHEET_PAGE_URL`, and `ANTHROPIC_API_KEY` (not set yet; optional `EXTRACT_MODEL`, default `claude-haiku-4-5-20251001`). Never commit keys; set them with `railway variables`.
+`--path-as-root` matters: without it the CLI uploads the whole repo and builds the front end instead. The start command runs migrations, optionally seeds (`SEED_ON_START`), then starts the server. Service variables: `DATABASE_URL` (reference to the Postgres service), `SEED_ON_START`, `INGEST_BYU`, `INGEST_SHEET_BASE` (published sheet base URL), `INGEST_SHEET_URLS` (optional explicit CSV links), `INGEST_CS`, `SUBMIT_TOKEN` (required for `/submit` and `/submit/bulk`; read it with `railway variables --service doorway-api`), optional `SHEET_PAGE_URL`, and `ANTHROPIC_API_KEY` (not set yet; optional `EXTRACT_MODEL`, default `claude-haiku-4-5-20251001`). Never commit keys; set them with `railway variables`.
 
 ---
 
@@ -269,10 +285,11 @@ Add a line to the changelog below for each change.
 
 ## Changelog
 
-- 2026-10-02: Front end consumes the new API: "Happening now" for in-progress events, "Unconfirmed" tag for `verified: false`, API `companies` order (client re-sort removed), `programs` shown separately, `GET /events?ids=` for "My plan", `GET /companies` for colors (cached per page load), UI for `people` and registration fields (hidden while empty), Denver time everywhere, match-score colors.
+- 2026-10-02: BYU IS Slack source, built for a workspace where custom apps are blocked: `POST /submit/bulk` (many events from a pasted dump) and the `/paste` page. Submit endpoints now require `SUBMIT_TOKEN` and are rate limited (they spend LLM credit); fail closed if the token is unset. New `slack` source value. Needs `ANTHROPIC_API_KEY` to actually extract (503 until set).
 - 2026-10-02: Front-end team's requests (see `docs/api-requests.md`): `/events` and `/recommendations` now include events still in progress; `verified` flag (false for submissions and unconfirmed rows); `companies` cleaned (deduped, alphabetical, matched-first in `/recommendations`, subtitles like "- Networking Readiness" stripped, graduate programs moved to new `programs`); new `people`, `registration_url`, `rsvp_required`, `registration_deadline` fields (empty until a source provides them; upserts only fill gaps); new `GET /events/:id`, `GET /events?ids=`, `GET /companies`. Upserts merge `verified` as "verified once any trusted source lists it".
 - 2026-10-02: Added the CS department source (`ingest-cs.js`: listing, event pages, per-event ICS) and automatic sheet tab discovery (the September tab added 5 events). BYU Calendar events are now classified using their `TagsNames` too. Removed the 16 fake placeholder seed events; the only seed left is the real Homecoming Hackathon with its sponsors. The live event count is now about 80 for Sep 1 to Dec 31.
 - 2026-10-02: Added the BYU Career Services sheet source (17 October events: Boeing, Sodexo, Ensign Peak, HXP, Disney College Program, and more) and corrected the docs: responses are UTC, display in America/Denver. The seeded "CS Hackathon" was confirmed to be the sheet's "Homecoming Hackathon" (Oct 2, ESC Annex, 8 AM-8 PM) and was renamed to match, keeping its Redo/Neighbor/Waystar sponsors.
 - 2026-10-02: Upserts now **union** `companies` and `fields` instead of overwriting, so curated sponsors survive re-ingests from sources that don't list them (side effect: a company can't be removed by re-ingesting; delete or edit the row). `seed.js` also deletes retired seed rows listed in `retiredEvents`.
 - 2026-10-02: Initial API: `/health`, `/events`, `/recommendations`, `/submit`; BYU Calendar ingest (daily); 17 seed events; front-end adapter behind `VITE_API_URL`; `relevant_only` option and word-aware field matching.
 - 2026-10-02: Front end: Profile top events on the live API; API order preserved; refetch on profile change; richer `toApiProfile`; `source_url` shown; matched companies first; employer entries for the live companies (Redo, Neighbor, Waystar and others). The data gap report for the API owner is in [`api-requests.md`](./api-requests.md).
+- 2026-10-02: Front end consumes the new API: "Happening now" for in-progress events; one "Unconfirmed" tag for `verified: false`; API `companies` order kept (client re-sort removed); `programs` shown separately; `people` populate "People to meet"; "Register" button and RSVP/register-by tags (all hidden while empty); `GET /events?ids=` keeps saved events in "My plan"; `GET /companies` for colors (cached per page load); Denver time everywhere; match labels (Strong / Good / Worth a look) instead of percentages; a "No good matches right now" state with a local-only (no backend yet) email signup on Events. API: fixed `classify.js` tagging evening events `product` off a clock time ("7:00 PM") instead of the Product Manager abbreviation; `scoring.js` now also matches a `target_role` against an event's classified `fields`, not just a literal phrase in its text (both found while investigating a Product Manager profile's weak matches, written up in `api-requests.md`). New `POST /subscriptions` requested (P1-8) for when the alert signup gets a real backend.

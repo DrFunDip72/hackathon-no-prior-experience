@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Add events</title>
+<style>
+  :root { --bg: #f7f7f5; --card: #fff; --ink: #1a1a1a; --muted: #666; --line: #d9d9d4; --accent: #1f3a5f; --ok: #1a7f37; --bad: #b42318; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #151515; --card: #1f1f1f; --ink: #eee; --muted: #aaa; --line: #3a3a3a; --accent: #8ab4f8; --ok: #5bd17a; --bad: #ff8a80; } }
+  body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  p.hint { color: var(--muted); margin: 0 0 16px; }
+  label { display: block; font-weight: 600; margin: 16px 0 6px; }
+  input, textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; }
+  textarea { min-height: 260px; resize: vertical; }
+  button { margin-top: 16px; padding: 10px 18px; border: 0; border-radius: 8px; background: var(--accent); color: var(--bg); font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+  #out { margin-top: 24px; }
+  .msg { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); margin-bottom: 8px; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); } .meta { color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Add events from pasted messages</h1>
+  <p class="hint">Copy messages from the Slack channel, paste them here, and the API pulls out the career fairs, info sessions and other events. Only the events are saved (title, date, place, companies, link), not who posted them. New events show as unconfirmed until a trusted source lists them too.</p>
+
+  <label for="token">Submit token</label>
+  <input id="token" type="password" autocomplete="off" placeholder="Stays in this browser only">
+
+  <label for="text">Pasted messages</label>
+  <textarea id="text" placeholder="Paste here. Several days of messages at once is fine."></textarea>
+
+  <button id="go">Extract events</button>
+  <div id="out" aria-live="polite"></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  try { $('token').value = localStorage.getItem('submitToken') || ''; } catch (e) {}
+
+  const line = (cls, text, meta) => {
+    const d = document.createElement('div');
+    d.className = 'msg';
+    const s = document.createElement('span');
+    s.className = cls; s.textContent = text; d.appendChild(s);
+    if (meta) { const m = document.createElement('div'); m.className = 'meta'; m.textContent = meta; d.appendChild(m); }
+    $('out').appendChild(d);
+  };
+
+  $('go').onclick = async () => {
+    const token = $('token').value.trim();
+    const text = $('text').value.trim();
+    $('out').textContent = '';
+    if (!token || !text) return line('bad', 'Enter the token and paste some messages first.');
+    try { localStorage.setItem('submitToken', token); } catch (e) {}
+    $('go').disabled = true; $('go').textContent = 'Reading messages...';
+    try {
+      const res = await fetch('/submit/bulk', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-submit-token': token },
+        body: JSON.stringify({ text, source: 'slack' })
+      });
+      const data = await res.json();
+      if (!res.ok) return line('bad', data.error || 'Something went wrong (' + res.status + ')');
+      line('ok', 'Saved ' + data.saved + ' event' + (data.saved === 1 ? '' : 's') + '.');
+      for (const e of data.events) {
+        line('', e.title, new Date(e.start_at).toLocaleString('en-US', { timeZone: 'America/Denver', dateStyle: 'medium', timeStyle: 'short' }) + (e.location ? ' · ' + e.location : '') + (e.companies.length ? ' · ' + e.companies.join(', ') : ''));
+      }
+      for (const s of data.skipped) line('bad', 'Skipped: ' + s);
+    } catch (err) {
+      line('bad', 'Could not reach the API: ' + err.message);
+    } finally {
+      $('go').disabled = false; $('go').textContent = 'Extract events';
+    }
+  };
+</script>
+</body>
+</html>

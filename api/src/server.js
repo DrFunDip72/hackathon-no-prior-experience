@@ -1,7 +1,10 @@
 import { createServer } from 'node:http';
 import { pool, queryEvents, queryEventsByIds, queryCompanies, upsertEvent } from './db.js';
 import { recommend, DEFAULT_WINDOW_DAYS } from './scoring.js';
-import { extractEvent, buildSubmissionRow } from './extract.js';
+import { readFileSync } from 'node:fs';
+import { extractEvent, extractEvents, buildSubmissionRow, buildBulkRows } from './extract.js';
+import { checkSubmitToken, createRateLimiter, clientIp } from './guard.js';
+import { SOURCES } from './event.js';
 import { ingestByu } from './ingest-byu.js';
 import { ingestSheets, discoverTabUrls } from './ingest-sheet.js';
 import { ingestCs } from './ingest-cs.js';
@@ -10,6 +13,16 @@ const DAY_MS = 86_400_000;
 const PORT = process.env.PORT ?? 3000;
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
+
+// /submit and /submit/bulk spend LLM credit, so they need SUBMIT_TOKEN and are rate limited per client.
+const submitAllowed = createRateLimiter({ max: 30, windowMs: 3_600_000 });
+function guardSubmit(req) {
+  const check = checkSubmitToken(req.headers, process.env.SUBMIT_TOKEN);
+  if (!check.ok) throw fail(check.status, check.error);
+  if (!submitAllowed(clientIp(req))) throw fail(429, 'too many submissions; try again later');
+}
+
+const pasteHtml = readFileSync(new URL('./paste.html', import.meta.url), 'utf8');
 
 const send = (res, status, body) => {
   res.writeHead(status, {
@@ -64,7 +77,22 @@ const routes = {
     return recommend(await queryEvents({ from: start, to: end }), profile, { from: start, to: end, relevantOnly: Boolean(relevantOnly) });
   },
 
+  // Many events from one pasted dump (e.g. a Slack channel copied into /paste). Stores only the extracted events.
+  'POST /submit/bulk': async (req) => {
+    guardSubmit(req);
+    const { text, source } = await readJson(req);
+    if (!text || String(text).trim().length < 20) throw fail(400, 'send { text } with the pasted messages');
+    if (String(text).length > 200_000) throw fail(413, 'paste is too long; split it into chunks of about 200,000 characters');
+    const list = await extractEvents({ text: String(text) });
+    if (!list) throw fail(422, 'could not read events from the model output; try again');
+    const { rows, skipped } = buildBulkRows(list, { source: SOURCES.includes(source) ? source : 'user_submission' });
+    const events = [];
+    for (const row of rows) events.push(await upsertEvent(row));
+    return { saved: events.length, skipped, events };
+  },
+
   'POST /submit': async (req) => {
+    guardSubmit(req);
     const { text, image_base64: imageBase64, media_type: mediaType } = await readJson(req);
     if (!text && !imageBase64) throw fail(400, 'send { text } or { image_base64 }');
     const extracted = await extractEvent({ text, imageBase64, mediaType });
@@ -81,6 +109,10 @@ const routes = {
 createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return send(res, 204, {});
   const url = new URL(req.url, 'http://localhost');
+  if (req.method === 'GET' && url.pathname === '/paste') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    return res.end(pasteHtml);
+  }
   const byId = req.method === 'GET' ? /^\/events\/([\w-]+)$/.exec(url.pathname) : null;
   const handler = byId ? async () => {
     const [event] = await queryEventsByIds([byId[1]]);

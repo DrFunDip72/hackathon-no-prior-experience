@@ -71,14 +71,18 @@ export function scorePerson(person: Person, profile: Profile, terms: ProfileTerm
   return { person, score, reason, talkingPoints: getTalkingPoints(person, profile, companyHit, tagHits) };
 }
 
+/** Score cut-offs for the match labels; also used for the Events page's "no good matches" state. */
+export const STRONG_MATCH = 55;
+export const GOOD_MATCH = 30;
+
 /**
  * Plain-language match label. The API sends a raw relevance score (not a true percentage), so showing
  * "29%" made good matches look bad. Every event in the feed is already relevant; this just ranks how strongly.
  * Switch to the API's `percent` once it ships (requested in docs/api-requests.md).
  */
 export function matchLabel(score: number): { label: string; className: string } {
-  if (score >= 55) return { label: 'Strong match', className: 'text-success-700' };
-  if (score >= 30) return { label: 'Good match', className: 'text-navy' };
+  if (score >= STRONG_MATCH) return { label: 'Strong match', className: 'text-success-700' };
+  if (score >= GOOD_MATCH) return { label: 'Good match', className: 'text-navy' };
   return { label: 'Worth a look', className: 'text-muted' };
 }
 
