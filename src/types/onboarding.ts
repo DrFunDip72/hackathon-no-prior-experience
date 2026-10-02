@@ -14,7 +14,8 @@ export type StepId =
 'employmentType' |
 'companies' |
 'industries' |
-'photo';
+'photo' |
+'visibility';
 
 export interface OnboardingStep {
   id: StepId;

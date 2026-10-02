@@ -1,6 +1,6 @@
 import { employers } from '../data/employers';
 import { industries } from '../data/industries';
-import { stepsFor } from '../data/onboardingSteps';
+import { stepsFor, VISIBLE_YES } from '../data/onboardingSteps';
 import { emptyResume, type ResumeData } from '../data/sampleResume';
 import type { OnboardingDraft, StepId } from '../types/onboarding';
 import type { Profile } from '../types/profile';
@@ -179,6 +179,7 @@ export function buildProfile(draft: OnboardingDraft, user: SessionUser | null): 
       industries: unique([...detectedIndustries, ...base.interests.industries]),
       companies
     },
-    visibleToEmployers: true
+    // Consent: only an explicit yes makes the profile findable.
+    visibleToEmployers: answer('visibility') === VISIBLE_YES
   };
 }

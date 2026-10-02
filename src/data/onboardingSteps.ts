@@ -65,7 +65,19 @@ const employmentType: OnboardingStep = {
 const photo: OnboardingStep = {
   id: 'photo',
   kind: 'photo',
-  prompt: 'Last one: want to add a profile photo? Recruiters remember faces. You can always add it later.'
+  prompt: 'Want to add a profile photo? Recruiters remember faces. You can always add it later.'
+};
+
+/** The answer that makes the profile findable; anything else (including an older draft without it) keeps it hidden. */
+export const VISIBLE_YES = 'Yes';
+
+/** Consent, asked last in every flow: employers only see the profile if the student says yes. */
+const visibility: OnboardingStep = {
+  id: 'visibility',
+  kind: 'choice',
+  prompt: 'Last one: want employers to be able to find your profile? You can change this any time.',
+  helper: 'Recruiters would see the profile we’re building: your headline, experience, projects, education, and skills.',
+  options: [VISIBLE_YES, 'Not yet']
 };
 
 const withProtocol = (url: string) => /^https?:\/\//i.test(url) ? url : `https://${url}`;
@@ -120,7 +132,7 @@ const industriesStep: OnboardingStep = {
  */
 export function stepsFor(draft: Pick<OnboardingDraft, 'extract'>): OnboardingStep[] {
   const x = draft.extract;
-  if (!x) return [resume, linkedin, majorYear, experience, skills, goals, employmentType, photo];
+  if (!x) return [resume, linkedin, majorYear, experience, skills, goals, employmentType, photo, visibility];
 
   const hasSkills = x.topSkills.length > 0 || x.skillGroups.some((g) => g.skills.length > 0);
   const steps: (OnboardingStep | false)[] = [
@@ -133,7 +145,8 @@ export function stepsFor(draft: Pick<OnboardingDraft, 'extract'>): OnboardingSte
   employmentType,
   companiesStep(x),
   x.suggestedIndustries.length === 0 && industriesStep,
-  photo];
+  photo,
+  visibility];
 
   return steps.filter((s): s is OnboardingStep => Boolean(s));
 }

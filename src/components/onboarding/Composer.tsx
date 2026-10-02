@@ -287,6 +287,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
               {option}
             </button>
         )}
+          {step.helper && <p className="w-full px-1 pt-1 text-xs text-muted">{step.helper}</p>}
         </div>
       }
 
@@ -461,7 +462,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
 
         <span className="text-xs text-muted">{footerHint}</span>
         }
-        {step.kind !== 'photo' && !knownLinkedin &&
+        {step.kind !== 'photo' && step.id !== 'visibility' && !knownLinkedin &&
         <button
           type="button"
           onClick={onSkip}
