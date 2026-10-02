@@ -3,6 +3,7 @@ import { pool, queryEvents, upsertEvent } from './db.js';
 import { recommend, DEFAULT_WINDOW_DAYS } from './scoring.js';
 import { extractEvent, buildSubmissionRow } from './extract.js';
 import { ingestByu } from './ingest-byu.js';
+import { ingestSheets } from './ingest-sheet.js';
 
 const DAY_MS = 86_400_000;
 const PORT = process.env.PORT ?? 3000;
@@ -90,4 +91,12 @@ if (process.env.INGEST_BYU) {
   const run = () => ingestByu(30).catch((err) => console.error('byu ingest failed:', err.message));
   run();
   setInterval(run, DAY_MS);
+}
+
+// The career-services sheet is hand-edited, so refresh it more often. INGEST_SHEET_URLS is a comma-separated list of CSV links.
+if (process.env.INGEST_SHEET_URLS) {
+  const urls = process.env.INGEST_SHEET_URLS.split(',').map((u) => u.trim()).filter(Boolean);
+  const run = () => ingestSheets(urls).catch((err) => console.error('sheet ingest failed:', err.message));
+  run();
+  setInterval(run, 6 * 3_600_000);
 }
