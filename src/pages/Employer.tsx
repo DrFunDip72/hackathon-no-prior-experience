@@ -142,7 +142,7 @@ export function Employer() {
           <div ref={endRef} aria-hidden="true" />
         </div>
 
-        <div ref={composerRef} className="sticky bottom-0 z-10 bg-gradient-to-t from-white from-70% to-white/0 pb-6 pt-6">
+        <div ref={composerRef} className="sticky bottom-0 z-10 bg-gradient-to-t from-white from-70% to-white/0 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6">
           {intake.activeStep && (!intake.complete || intake.editing) ?
           <Composer
             key={`${intake.activeStep.id}-${intake.editing ?? 'new'}`}

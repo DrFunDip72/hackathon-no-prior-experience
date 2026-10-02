@@ -68,7 +68,7 @@ export function Profile() {
         }
       </AnimatePresence>
 
-      <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_300px]">
+      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_300px]">
         <div className="min-w-0 space-y-4">
           {preview && !profile.visibleToEmployers ?
           <section className="rounded-xl border border-line bg-white px-6 py-16 text-center">

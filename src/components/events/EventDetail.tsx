@@ -151,7 +151,7 @@ export function EventDetail({ item, added, schedule, onAdd, onRemove, onClose }:
         }
       </div>
 
-      <div className="border-t border-line bg-white p-4">
+      <div className="border-t border-line bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {event.registrationUrl &&
         <a
           href={event.registrationUrl}

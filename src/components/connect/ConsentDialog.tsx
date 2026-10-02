@@ -44,7 +44,7 @@ export function ConsentDialog({ source, onAllow, onCancel }: ConsentDialogProps)
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.96 }}
           transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-          className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+          className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
 
             <div className="flex items-center gap-2 text-sm text-muted">
               <GoogleIcon className="h-5 w-5" /> {source.name}

@@ -14,7 +14,8 @@ const tones = {
 
 export function Chip({ children, tone = 'neutral' }: ChipProps) {
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>
+    // Phones: a long chip (a course name) wraps inside its row instead of pushing the page sideways.
+    <span className={`inline-flex max-w-full items-center gap-1 rounded-md sm:max-w-none sm:whitespace-nowrap px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>
       {children}
     </span>);
 

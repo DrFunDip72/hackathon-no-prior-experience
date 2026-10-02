@@ -288,7 +288,7 @@ export function Events() {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
-            className="fixed inset-x-0 bottom-0 z-50 h-[85vh] overflow-hidden rounded-t-2xl bg-white">
+            className="fixed inset-x-0 bottom-0 z-50 h-[85dvh] overflow-hidden rounded-t-2xl bg-white">
             
               {detail}
             </motion.div>

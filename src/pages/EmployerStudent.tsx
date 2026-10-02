@@ -74,7 +74,7 @@ export function EmployerStudent() {
           Phone: who the student is (header), then their fit, then the rest of the profile.
           Desktop: the profile on the left, the fit panel pinned on the right across both rows.
          */}
-        <div className="mt-4 grid gap-x-6 gap-y-4 lg:grid-cols-[1fr_320px] lg:grid-rows-[auto_1fr]">
+        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-[1fr_320px] lg:grid-rows-[auto_1fr]">
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             <ProfileHeader {...sectionProps} />
           </div>

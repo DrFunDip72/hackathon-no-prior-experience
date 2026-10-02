@@ -164,7 +164,7 @@ export function Onboarding() {
           <div ref={endRef} aria-hidden="true" />
         </div>
 
-        <div ref={composerRef} className="sticky bottom-0 z-10 bg-gradient-to-t from-white from-70% to-white/0 pb-6 pt-6">
+        <div ref={composerRef} className="sticky bottom-0 z-10 bg-gradient-to-t from-white from-70% to-white/0 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6">
           {ob.buildError &&
           <p role="alert" className="mb-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger">
               {ob.buildError}
