@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Loader2Icon } from 'lucide-react';
+import { toast } from 'sonner';
 import { Logo } from '../components/Logo';
 import { TextField } from '../components/ui/TextField';
 import { GoogleIcon } from '../components/ui/GoogleIcon';
 import { useSession } from '../contexts/SessionContext';
-import { ApiError, type ApiField } from '../utils/api';
+import { api, ApiError, type ApiField } from '../utils/api';
 import { isEmail } from '../utils/text';
 import type { UserState } from '../types/session';
 
@@ -13,12 +14,13 @@ type Errors = Partial<Record<ApiField | 'form', string>>;
 
 /** Log in for returning students. New students create their account at the end of onboarding. */
 export function Auth() {
-  const { logIn, googleSignIn } = useSession();
+  const { logIn, googleSignIn, saveProfile } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as {from?: string;} | null)?.from;
+  const routerState = location.state as {from?: string;email?: string;} | null;
+  const from = routerState?.from;
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(routerState?.email ?? '');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [pending, setPending] = useState<'form' | 'google' | null>(null);
@@ -26,6 +28,24 @@ export function Auth() {
   const finish = (state: UserState) => {
     if (!state.profile) navigate('/onboarding', { replace: true });else
     navigate(from && from !== '/onboarding' ? from : '/events', { replace: true });
+  };
+
+  // "Log in instead", after onboarding hit an account that already exists, leaves behind the
+  // profile that was just built. Offer it back once, rather than silently losing it.
+  const offerRecoveredProfile = (loggedInEmail: string) => {
+    const recovered = api.loadRecoveredProfile(loggedInEmail);
+    if (!recovered) return;
+    api.clearRecoveredProfile();
+    toast('You built a profile when you tried to sign up. Use it for this account?', {
+      duration: 10000,
+      action: {
+        label: 'Use it',
+        onClick: () => {
+          void saveProfile(recovered);
+          toast('Profile updated.');
+        }
+      }
+    });
   };
 
   const validate = (): Errors => {
@@ -42,7 +62,9 @@ export function Auth() {
     if (Object.keys(found).length) return;
     setPending('form');
     try {
-      finish(await logIn(email, password));
+      const nextState = await logIn(email, password);
+      offerRecoveredProfile(email);
+      finish(nextState);
     } catch (err) {
       if (err instanceof ApiError) setErrors({ [err.field ?? 'form']: err.message });else
       setErrors({ form: 'Something went wrong. Try again.' });

@@ -5,7 +5,7 @@ import { ArrowLeftIcon, Loader2Icon } from 'lucide-react';
 import { TextField } from '../ui/TextField';
 import { GoogleIcon } from '../ui/GoogleIcon';
 import { useSession } from '../../contexts/SessionContext';
-import { ApiError, type ApiField } from '../../utils/api';
+import { api, ApiError, type ApiField } from '../../utils/api';
 import { isEmail } from '../../utils/text';
 import type { Profile } from '../../types/profile';
 
@@ -30,7 +30,13 @@ export function AccountStep({ profile, onCreated, onBack }: AccountStepProps) {
   const showError = (err: unknown, fallback: string) => {
     if (err instanceof ApiError) {
       setErrors({ [err.field ?? 'form']: err.message });
-      setAccountExists(err.field === 'email');
+      const exists = err.field === 'email';
+      setAccountExists(exists);
+      // The profile just built would otherwise be lost the moment "Log in instead" navigates away.
+      // Keep it for one login attempt so it can be offered back, instead of silently discarding it.
+      if (exists && email.trim()) {
+        api.saveRecoveredProfile(email, { ...profile, name: name.trim() || profile.name, email: email.trim() });
+      }
     } else {
       setErrors({ form: fallback });
     }
@@ -123,8 +129,12 @@ export function AccountStep({ profile, onCreated, onBack }: AccountStepProps) {
                 placeholder="you@byu.edu" />
 
               {accountExists &&
-              <Link to="/login" className="mt-1.5 inline-block text-xs font-medium text-navy hover:underline">
-                  Log in instead
+              <Link
+                to="/login"
+                state={{ email: email.trim() }}
+                className="mt-1.5 inline-block text-xs font-medium text-navy hover:underline">
+
+                  Log in instead — we'll offer to apply what you just entered
                 </Link>
               }
             </div>

@@ -45,8 +45,17 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
             </p>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-3xl font-semibold tabular-nums tracking-tight text-success-700">{item.score}%</p>
-            <p className="text-xs text-muted">match</p>
+            {item.reasons.length > 0 ?
+            <>
+                <p className="text-3xl font-semibold tabular-nums tracking-tight text-success-700">{item.score}%</p>
+                <p className="text-xs text-muted">match</p>
+              </> :
+
+            <>
+                <p className="text-3xl font-semibold tabular-nums tracking-tight text-muted">—</p>
+                <p className="text-xs text-muted">add your profile</p>
+              </>
+            }
           </div>
         </div>
 
@@ -105,7 +114,9 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
       </div>
 
       <div className="flex shrink-0 flex-col items-end justify-between gap-3">
-        <span className={`text-base font-semibold tabular-nums ${strong ? 'text-success-700' : 'text-muted'}`}>{item.score}%</span>
+        <span className={`text-base font-semibold tabular-nums ${item.reasons.length === 0 ? 'text-muted' : strong ? 'text-success-700' : 'text-muted'}`}>
+          {item.reasons.length > 0 ? `${item.score}%` : '—'}
+        </span>
         <AddToCalendarButton item={item} added={added} onAdd={onAdd} size="sm" />
       </div>
     </article>);
