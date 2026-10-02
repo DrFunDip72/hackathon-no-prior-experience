@@ -11,40 +11,37 @@ Hackathon project for the **Improving the job hunt** challenge. Doorway pulls sc
 
 ## Try it
 
-It is a clickable walkthrough with sample data. There is no sign-in, and nothing leaves your browser.
+It is a clickable walkthrough with sample data. Accounts and profiles are simulated and stored only in your browser (localStorage); nothing leaves your device.
 
 - **Live:** https://doorway-gray.vercel.app (redeploys on every push to `main`)
-- **Locally:** double-click `index.html`, or run `python -m http.server` in this folder and open http://localhost:8000.
-- **Fastest path:** click **Try the demo** on the landing page to load a sample student, then explore **Your week**.
+- **Locally:** run `npm install`, then `npm run dev`, and open the URL it prints.
+- **Production build:** `npm run build` writes the site to `dist/`; `npm run preview` serves it.
 
-| Screen | URL |
+| Screen | Path |
 | --- | --- |
-| Landing | `#/` |
-| Chat onboarding | `#/onboarding` |
-| Profile | `#/profile` |
-| Your week | `#/home` |
-| Event detail | `#/events/<id>` |
-| Employer preview (phase two) | `#/employers/preview` |
+| Landing | `/` |
+| Sign up / log in | `/signup`, `/login` |
+| Chat onboarding | `/onboarding` |
+| Profile | `/profile` |
+| Events | `/events` |
+| Connect calendars | `/connect` |
 
 ## Code map
 
-Plain HTML, CSS and JavaScript. No build step and no dependencies.
+Vite, React, TypeScript and Tailwind. The UI was generated with Magic Patterns from [`docs/magic-patterns-prompt.md`](docs/magic-patterns-prompt.md).
 
-| File | What it does |
+| Path | What it does |
 | --- | --- |
-| `index.html` | Page shell; loads the scripts in order |
-| `css/style.css` | All styles, with light and dark mode |
-| `js/data.js` | Sample events and the demo student (all made up) |
-| `js/api.js` | **The data layer.** All reads and writes go through here |
-| `js/match.js` | Event matching rules and the "why" text |
-| `js/profile.js` | Labels, resume parsing, role inference, summary and pitch writing |
-| `js/ics.js` | Calendar files and Google Calendar links |
-| `js/ui.js` | DOM builder (text-safe), dates, toast, dialog, clipboard |
-| `js/app.js` | Router and all screens |
-
-### Plugging in the real events feed
-
-Set `window.DOORWAY_EVENTS_API_URL` before the scripts load (there is a commented line in `index.html`). The endpoint returns a JSON array of events in the shape documented in `js/data.js`. If it fails, the app offers to fall back to the sample events.
+| `index.html` | Vite entry page |
+| `src/App.tsx` | Router and providers |
+| `src/pages/` | One file per screen (Landing, Auth, Onboarding, Profile, Events, Connect) |
+| `src/components/` | UI grouped by screen: landing, onboarding, profile, events, connect, ui |
+| `src/data/` | Sample events, people, employers and the demo resume (all made up) |
+| `src/utils/api.ts` | **The simulated back end.** All reads and writes go through here; swap for real endpoints later |
+| `src/utils/matching.ts` | Event matching rules and the "why" text |
+| `src/utils/profileBuilder.ts` | Builds a profile from the onboarding answers and resume |
+| `src/utils/googleCalendar.ts` | Add-to-Google-Calendar links |
+| `vercel.json` | Vite build settings and the single-page-app rewrite so deep links work |
 
 ## Team workflow
 

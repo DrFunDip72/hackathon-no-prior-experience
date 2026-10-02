@@ -1,48 +1,13 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Doorway · Find who you need to find</title>
-  <meta name="description" content="Doorway turns scattered campus events into a personal plan: where to be, who to talk to, and what to say.">
-  <link rel="stylesheet" href="css/style.css">
-  <!--
-    To use the real events feed instead of the sample data, uncomment and set the URL:
-    <script>window.DOORWAY_EVENTS_API_URL = 'https://your-api.example/events';</script>
-  -->
-</head>
-<body>
-  <header class="topbar">
-    <div class="wrap">
-      <a class="brand" href="#/">Door<span>way</span></a>
-      <nav class="nav" aria-label="Main">
-        <a href="#/home" data-nav="/home">Your week</a>
-        <a href="#/profile" data-nav="/profile">Profile</a>
-        <a href="#/employers/preview" data-nav="/employers/preview">For employers</a>
-      </nav>
-    </div>
-  </header>
-
-  <main id="app" class="wrap" tabindex="-1">
-    <noscript><p class="loading">Doorway needs JavaScript turned on.</p></noscript>
-  </main>
-
-  <footer class="foot">
-    <div class="wrap">
-      <span>Built at a hackathon.</span>
-      <span id="sample-note">Sample data. Live event feed coming soon.</span>
-      <span id="storage-note" hidden>Your browser is blocking storage, so changes last only until you close this tab.</span>
-    </div>
-  </footer>
-
-  <div id="toast" role="status" aria-live="polite"></div>
-
-  <script src="js/data.js"></script>
-  <script src="js/profile.js"></script>
-  <script src="js/match.js"></script>
-  <script src="js/ics.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Campus Job Connection Platform</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
 </html>
