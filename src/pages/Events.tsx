@@ -154,6 +154,14 @@ export function Events() {
           </aside>
 
           <section aria-label={tab === 'forYou' ? 'Recommended events' : 'My plan'} className="min-w-0 space-y-3">
+            {tab === 'plan' && feed.plannedError && !feed.loading &&
+            <div role="status" className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-3 text-sm">
+                <span className="text-muted">Some saved events couldn’t be loaded.</span>
+                <button type="button" onClick={feed.retry} className="inline-flex shrink-0 items-center gap-1 font-medium text-navy hover:underline">
+                  <RefreshCwIcon className="h-3.5 w-3.5" aria-hidden="true" /> Retry
+                </button>
+              </div>
+            }
             {feed.loading ?
             <>
                 <EventSkeleton hero />

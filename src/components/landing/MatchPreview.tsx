@@ -1,12 +1,22 @@
 import React from 'react';
-import { CalendarPlusIcon, CheckCircle2Icon, MapPinIcon } from 'lucide-react';
-import { Avatar } from '../ui/Avatar';
+import { CalendarPlusIcon, CheckCircle2Icon } from 'lucide-react';
 import { EmployerLogo } from '../ui/EmployerLogo';
 import { employers } from '../../data/employers';
-import { people } from '../../data/people';
+import { matchLabel } from '../../utils/matching';
 
-const adobe = employers[0];
-const attendees = people.slice(0, 3);
+/** A realistic example of how an event from the live API reads on the Events page. */
+const example = {
+  reason: 'Redo and Neighbor reps attending, matches 2 of your target companies.',
+  title: 'Startup Career Fair',
+  meta: 'Career fair · Thu, Oct 8, 10:00 AM – 2:00 PM · Wilkinson Student Center',
+  score: 86,
+  companyIds: ['redo', 'neighbor', 'waystar', 'scalar', 'hxp']
+};
+
+const attending = example.companyIds.
+map((id) => employers.find((e) => e.id === id)).
+filter((e): e is (typeof employers)[number] => Boolean(e));
+
 
 export function MatchPreview() {
   return (
@@ -17,56 +27,47 @@ export function MatchPreview() {
             Know who’ll be in the room before you walk in.
           </h2>
           <p className="mt-4 max-w-md text-lg leading-relaxed text-muted">
-            Every event is scored against your profile, checked against your schedule, and comes with the recruiters and
-            alumni worth finding, plus what to say to them.
+            Every event is scored against your resume and target companies, checked against your calendar, and tells you
+            in one line why it’s worth your time.
           </p>
         </div>
 
-        <div aria-hidden="true" className="rounded-2xl border border-line bg-white p-6 shadow-[0_12px_40px_-20px_rgba(15,23,42,0.25)]">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <EmployerLogo employer={adobe} size="md" />
-              <div>
-                <p className="text-xs font-medium text-muted">Info session · Thu, 5:00 PM</p>
-                <p className="text-lg font-semibold text-ink">Adobe Product Design Info Session</p>
-              </div>
+        <div aria-hidden="true" className="rounded-2xl border border-line bg-white p-5 shadow-[0_12px_40px_-20px_rgba(15,23,42,0.25)] sm:p-6">
+          <div className="flex items-start justify-between gap-4 sm:gap-6">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-navy">Your top match</p>
+              <p className="mt-1.5 text-lg font-semibold leading-snug tracking-tight text-ink sm:text-xl">{example.reason}</p>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-semibold tabular-nums text-success-700">94%</p>
-              <p className="text-xs text-muted">match</p>
+            <div className="shrink-0 text-right">
+              <p className={`text-lg font-semibold tracking-tight sm:text-xl ${matchLabel(example.score).className}`}>{matchLabel(example.score).label}</p>
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-            <span className="flex items-center gap-1.5">
-              <MapPinIcon className="h-4 w-4" /> Tanner Building 260
-            </span>
-            <span className="flex items-center gap-1.5 text-success-700">
-              <CheckCircle2Icon className="h-4 w-4" /> You’re free
-            </span>
-          </div>
-          <p className="mt-3 text-sm text-ink">
-            <span className="text-muted">Why: </span>Adobe is on your list, plus UX and Figma
-          </p>
+          <p className="mt-3 text-[15px] font-medium text-ink">{example.title}</p>
+          <p className="mt-0.5 text-sm text-muted">{example.meta}</p>
+          <span className="mt-3 inline-flex items-center gap-1 rounded-md bg-success-50 px-2 py-0.5 text-xs font-medium text-success-700">
+            <CheckCircle2Icon className="h-3 w-3" /> You’re free
+          </span>
 
-          <div className="mt-5 space-y-3 border-t border-line pt-5">
-            {attendees.map((p) =>
-            <div key={p.id} className="flex items-center gap-3">
-                <Avatar name={p.name} size="sm" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-ink">{p.name}</p>
-                  <p className="truncate text-xs text-muted">
-                    {p.title}
-                    {p.byuConnection ? ` · ${p.byuConnection}` : ''}
-                  </p>
-                </div>
-                <span className="ml-auto rounded-full bg-canvas px-2 py-0.5 text-xs text-muted">{p.kind}</span>
+          <div className="mt-5 flex flex-col gap-4 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex -space-x-1.5">
+                {attending.slice(0, 4).map((e) =>
+                <span key={e.id} className="rounded-md ring-2 ring-white">
+                    <EmployerLogo employer={e} size="sm" />
+                  </span>
+                )}
               </div>
-            )}
-          </div>
-
-          <div className="mt-5 flex items-center justify-center gap-2 rounded-lg bg-navy px-4 py-2.5 text-sm font-medium text-white">
-            <CalendarPlusIcon className="h-4 w-4" /> Add to Google Calendar
+              <p className="min-w-0 text-sm text-ink">
+                <span className="font-medium">
+                  {attending[0].name}, {attending[1].name}
+                </span>
+                <span className="text-muted"> and {attending.length - 2} more attending</span>
+              </p>
+            </div>
+            <span className="inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-navy px-4 py-2 text-sm font-medium text-white">
+              <CalendarPlusIcon className="h-4 w-4" /> Add to Google Calendar
+            </span>
           </div>
         </div>
       </div>

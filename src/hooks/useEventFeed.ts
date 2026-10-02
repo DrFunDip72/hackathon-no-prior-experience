@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { calendarSources } from '../data/calendarSources';
 import { api } from '../utils/api';
-import { API_URL, fetchRecommendedEvents, toApiProfile } from '../utils/backend';
+import { API_URL, fetchEventsByIds, fetchRecommendedEvents, toApiProfile } from '../utils/backend';
 import { daysFromToday } from '../utils/dates';
 import { getProfileTerms, scoreEvent } from '../utils/matching';
 import { unique } from '../utils/text';
@@ -46,6 +46,29 @@ export function useEventFeed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt, profileKey]);
 
+  // Saved events that aren't in the ranked feed (outside its window, or no longer relevant) are loaded by id,
+  // so they stay in "My plan". Only ids we haven't loaded yet are requested.
+  const [saved, setSaved] = useState<CampusEvent[]>([]);
+  const [savedError, setSavedError] = useState(false);
+  const requested = useRef(new Set<string>());
+  const missingKey = API_URL && raw ?
+  state.addedEventIds.filter((id) => !requested.current.has(id) && !raw.some((e) => e.id === id)).join(',') :
+  '';
+
+  useEffect(() => {
+    if (!missingKey) return;
+    const ids = missingKey.split(',');
+    ids.forEach((id) => requested.current.add(id));
+    let alive = true;
+    setSavedError(false);
+    fetchEventsByIds(ids).
+    then((result) => alive && setSaved((prev) => [...prev.filter((p) => !ids.includes(p.id)), ...result])).
+    catch(() => alive && setSavedError(true));
+    return () => {
+      alive = false;
+    };
+  }, [missingKey]);
+
   const googleConnected = Boolean(state.connections.google);
   const connectedSources = calendarSources.
   filter((s) => s.provider === 'BYU' && state.connections[s.id]).
@@ -53,6 +76,7 @@ export function useEventFeed() {
   const sourcesKey = connectedSources.join(',');
   const showingAllSources = connectedSources.length === 0;
 
+  // Ended events drop out; in-progress ones stay (the API returns them, shown as "Happening now").
   const allScored = useMemo(() => {
     if (!raw) return [];
     const terms = getProfileTerms(profile);
@@ -63,6 +87,12 @@ export function useEventFeed() {
     // API results arrive ranked best-first; keep that order. Only sample data is ranked here.
     return API_URL ? scored : scored.sort((a, b) => b.score - a.score);
   }, [raw, profile, googleConnected]);
+
+  const savedScored = useMemo(() => {
+    const terms = getProfileTerms(profile);
+    const now = new Date();
+    return saved.map((e) => scoreEvent(e, profile, terms, googleConnected)).filter((e) => e.end > now);
+  }, [saved, profile, googleConnected]);
 
   const scored = useMemo(
     () => allScored.filter((s) => showingAllSources || connectedSources.includes(s.event.sourceId)),
@@ -83,11 +113,12 @@ export function useEventFeed() {
   );
 
   const planned = useMemo(
-    () =>
-    allScored.
-    filter((s) => state.addedEventIds.includes(s.event.id)).
-    sort((a, b) => a.start.getTime() - b.start.getTime()),
-    [allScored, state.addedEventIds]
+    () => {
+      const ranked = allScored.filter((s) => state.addedEventIds.includes(s.event.id));
+      const extra = savedScored.filter((s) => state.addedEventIds.includes(s.event.id) && !ranked.some((r) => r.event.id === s.event.id));
+      return [...ranked, ...extra].sort((a, b) => a.start.getTime() - b.start.getTime());
+    },
+    [allScored, savedScored, state.addedEventIds]
   );
 
   const availableIndustries = useMemo(() => unique(scored.flatMap((s) => s.event.industries)).sort(), [scored]);
@@ -101,10 +132,16 @@ export function useEventFeed() {
   return {
     loading: raw === null && !error,
     error,
-    retry: () => setAttempt((a) => a + 1),
+    retry: () => {
+      requested.current.clear();
+      setSavedError(false);
+      setAttempt((a) => a + 1);
+    },
     items,
     total: scored.length,
     planned,
+    /** Some saved events couldn't be loaded by id; `retry` tries again. */
+    plannedError: savedError,
     filters,
     setFilters,
     resetFilters: () => setFilters(defaultFilters),

@@ -1,45 +1,77 @@
-import React, { useEffect, useRef } from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
+import { useReducedMotion } from 'framer-motion';
 import { ClipboardPasteIcon, FileTextIcon, RotateCcwIcon, SparklesIcon } from 'lucide-react';
 import { AppHeader } from '../components/AppHeader';
+import { HeroBackground, isHeroBackgroundVariant } from '../components/landing/HeroBackground';
 import { ChatBubble } from '../components/onboarding/ChatBubble';
 import { Composer } from '../components/onboarding/Composer';
 import { BuildingProfile } from '../components/onboarding/BuildingProfile';
 import { AccountStep } from '../components/onboarding/AccountStep';
+import { ReadyDialog } from '../components/onboarding/ReadyDialog';
 import { useSession } from '../contexts/SessionContext';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { firstName } from '../utils/text';
 import type { OnboardingStep } from '../types/onboarding';
 
+/** Gap kept between the newest message and the top of the pinned composer. */
+const COMPOSER_GAP = 12;
+
 export function Onboarding() {
   const { state } = useSession();
   const ob = useOnboarding();
+  const [params] = useSearchParams();
+  const reduceMotion = useReducedMotion();
   const endRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const readyButtonRef = useRef<HTMLButtonElement>(null);
+  const firstScroll = useRef(true);
+  const [readyOpen, setReadyOpen] = useState(false);
   const { answeredSteps, progress } = ob;
 
+  const bgParam = params.get('bg');
+  const bg = isHeroBackgroundVariant(bgParam) ? bgParam : undefined;
+
+  // Keep the newest message and the composer in view whenever the conversation moves on. The sentinel's
+  // scroll margin is the pinned composer's height, so the latest question never ends up underneath it.
+  const scrollKey = [answeredSteps.length, ob.activeStep?.id, ob.editing, ob.complete, Object.keys(ob.draft.notes ?? {}).length].join('|');
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [answeredSteps.length, ob.editing]);
+    const end = endRef.current;
+    if (ob.phase !== 'chat' || !end) return;
+    // Runs after commit, so the new composer is in the DOM and its height is final.
+    end.style.scrollMarginBottom = `${(composerRef.current?.offsetHeight ?? 0) + COMPOSER_GAP}px`;
+    end.scrollIntoView({ behavior: firstScroll.current || reduceMotion ? 'auto' : 'smooth', block: 'end' });
+    firstScroll.current = false;
+  }, [scrollKey, ob.phase, reduceMotion]);
+
+  // Every question answered (and not mid-edit): offer to build, after a beat so the closing message is seen.
+  const readyNow = ob.complete && !ob.editing;
+  useEffect(() => {
+    if (!readyNow) {
+      setReadyOpen(false);
+      return;
+    }
+    const t = setTimeout(() => setReadyOpen(true), reduceMotion ? 0 : 450);
+    return () => clearTimeout(t);
+  }, [readyNow, reduceMotion]);
 
   // Signed in with a profile already: never overwrite it from here.
-  if (ob.user && state.profile) return <Navigate to="/profile" replace />;
+  if (ob.user && state.profile) return <Navigate to="/events" replace />;
 
-  if (ob.phase === 'building') {
-    return (
-      <div className="flex min-h-screen w-full flex-col bg-white">
-        <AppHeader />
-        <BuildingProfile usedResume={Boolean(ob.draft.extract)} />
-      </div>);
+  const page = (children: React.ReactNode) =>
+  <div className="relative isolate flex min-h-screen w-full flex-col bg-white">
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
+        <HeroBackground variant={bg} />
+      </div>
+      <AppHeader />
+      {children}
+    </div>;
 
-  }
+
+  if (ob.phase === 'building') return page(<BuildingProfile usedResume={Boolean(ob.draft.extract)} />);
 
   if (ob.phase === 'account' && ob.builtProfile) {
-    return (
-      <div className="flex min-h-screen w-full flex-col bg-canvas">
-        <AppHeader />
-        <AccountStep profile={ob.builtProfile} onCreated={ob.finish} onBack={ob.backToChat} />
-      </div>);
-
+    return page(<AccountStep profile={ob.builtProfile} onCreated={ob.finish} onBack={ob.backToChat} />);
   }
 
   const sourceLine = (icon: 'file' | 'paste', text: string) =>
@@ -70,9 +102,17 @@ export function Onboarding() {
     return <span className="whitespace-pre-wrap break-words">{answer.value}</span>;
   };
 
-  return (
-    <div className="flex min-h-screen w-full flex-col bg-white">
-      <AppHeader />
+  const answeredCount = answeredSteps.filter((s) => !ob.draft.answers[s.id]?.skipped).length;
+  const summary = `${answeredCount} of ${answeredSteps.length} questions answered${
+  ob.draft.extract ? ', plus what I read from your resume' : ''}. You can edit anything later, then create an account to save it.`;
+
+  const startBuild = () => {
+    setReadyOpen(false);
+    void ob.build();
+  };
+
+  return page(
+    <>
       <div className="h-0.5 w-full bg-canvas" role="progressbar" aria-label="Onboarding progress" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
         <div className="h-full bg-navy transition-[width] duration-300 ease-out" style={{ width: `${progress * 100}%` }} />
       </div>
@@ -111,10 +151,10 @@ export function Onboarding() {
               That’s everything I need. I’ll turn this into a profile you can edit anytime. Then you’ll create an account to save it.
             </ChatBubble>
           }
-          <div ref={endRef} />
+          <div ref={endRef} aria-hidden="true" />
         </div>
 
-        <div className="sticky bottom-0 bg-white pb-6 pt-2">
+        <div ref={composerRef} className="sticky bottom-0 z-10 bg-gradient-to-t from-white from-70% to-white/0 pb-6 pt-6">
           {ob.buildError &&
           <p role="alert" className="mb-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger">
               {ob.buildError}
@@ -132,7 +172,7 @@ export function Onboarding() {
             onCancelEdit={() => ob.setEditing(null)} /> :
 
 
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3">
               <button
               type="button"
               onClick={ob.restart}
@@ -142,17 +182,27 @@ export function Onboarding() {
                 Start over
               </button>
               <button
+              ref={readyButtonRef}
               type="button"
-              onClick={ob.build}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink px-5 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy sm:w-auto">
+              onClick={() => setReadyOpen(true)}
+              aria-haspopup="dialog"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-navy transition-colors duration-150 hover:bg-navy-50">
 
                 <SparklesIcon className="h-4 w-4" aria-hidden="true" />
-                Build my profile
+                I’m ready
               </button>
             </div>
           }
         </div>
       </main>
-    </div>);
 
+      <ReadyDialog
+        open={readyOpen && ob.phase === 'chat'}
+        summary={summary}
+        onBuild={startBuild}
+        onClose={() => setReadyOpen(false)}
+        fallbackFocus={readyButtonRef} />
+
+    </>
+  );
 }

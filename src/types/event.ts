@@ -29,6 +29,16 @@ export interface CampusEvent {
   apiScore?: number;
   apiReasons?: string[];
   apiReason?: string;
+  /** API: false means unconfirmed (submitted by a person or read by an LLM). Undefined for sample events. */
+  verified?: boolean;
+  /** API: graduate schools and degree programs presenting. Never shown as employer logos. */
+  programs?: string[];
+  /** API: people named on the listing. Takes the place of attendeeIds when present. */
+  people?: Person[];
+  registrationUrl?: string;
+  rsvpRequired?: boolean;
+  /** ISO instant (UTC). */
+  registrationDeadline?: string;
 }
 
 export interface Employer {
@@ -37,9 +47,10 @@ export interface Employer {
   industry: string;
   initials: string;
   color: string;
+  logoUrl?: string;
 }
 
-export type PersonKind = 'Recruiter' | 'Alumni' | 'Speaker' | 'Club lead';
+export type PersonKind = 'Recruiter' | 'Alumni' | 'Speaker' | 'Club lead' | 'Host';
 
 export interface Person {
   id: string;
@@ -50,6 +61,7 @@ export interface Person {
   kind: PersonKind;
   byuConnection?: string;
   tags: string[];
+  linkedinUrl?: string;
 }
 
 export interface ScheduleBlock {

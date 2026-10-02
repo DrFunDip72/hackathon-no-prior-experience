@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useSession } from '../contexts/SessionContext';
 import { stepsFor } from '../data/onboardingSteps';
 import { api } from '../utils/api';
@@ -157,10 +158,12 @@ export function useOnboarding() {
     persist(emptyDraft);
   };
 
+  /** Profile saved: land on the events picked for it. */
   const finish = () => {
     api.clearGuestDraft();
     clearLandingPrompt();
-    navigate('/profile', { replace: true });
+    navigate('/events', { replace: true });
+    toast.success('Welcome to Doorway', { description: 'Here are the events that fit your profile.' });
   };
 
   const build = async () => {

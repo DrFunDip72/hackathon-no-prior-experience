@@ -1,9 +1,11 @@
 import React, { useRef, useState } from 'react';
-import { ArrowRightIcon, ArrowUpIcon, ClipboardPasteIcon, FileTextIcon, ImagePlusIcon, Loader2Icon, PaperclipIcon, XIcon } from 'lucide-react';
+import { ArrowRightIcon, ArrowUpIcon, ClipboardPasteIcon, FileTextIcon, ImagePlusIcon, Loader2Icon, XIcon } from 'lucide-react';
 import { isPdf, readAsDataUrl, resizeImage } from '../../utils/files';
 import { splitList, unique } from '../../utils/text';
 import type { OnboardingDraft, OnboardingStep, SourceSubmission } from '../../types/onboarding';
 import type { InitialValue } from '../../hooks/useOnboarding';
+import { PdfDropZone } from './PdfDropZone';
+import { LinkedInPdfHelp } from './LinkedInPdfHelp';
 
 interface ComposerProps {
   step: OnboardingStep;
@@ -26,7 +28,6 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
   const [value, setValue] = useState(initial.value);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [dragging, setDragging] = useState(false);
   const [pasting, setPasting] = useState(false);
   const [pasted, setPasted] = useState('');
   const [attachment, setAttachment] = useState<{name: string;dataUrl: string;} | null>(null);
@@ -140,12 +141,12 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
     setPasting(false);
   };
 
-  const fileInput =
+  const photoInput =
   <input
     ref={fileRef}
     type="file"
     className="sr-only"
-    accept={step.kind === 'photo' ? 'image/*' : '.pdf,application/pdf'}
+    accept="image/*"
     onChange={(e) => {
       void onFile(e.target.files?.[0]);
       e.target.value = '';
@@ -211,7 +212,6 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
 
       {step.kind === 'resume' &&
       <>
-          {fileInput}
           {busy ?
         <div className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-navy-200 bg-canvas px-4 py-8 text-center" role="status">
               <Loader2Icon className="h-5 w-5 animate-spin text-navy" aria-hidden="true" />
@@ -237,29 +237,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             </> :
 
         <>
-              <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              void onFile(e.dataTransfer.files[0]);
-            }}
-            className={`flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center transition-colors duration-150 ${
-            dragging ? 'border-navy bg-navy-50' : 'border-line hover:border-navy-200 hover:bg-canvas'}`
-            }>
-
-                <FileTextIcon className="h-5 w-5 text-muted" aria-hidden="true" />
-                <span className="text-sm font-medium text-ink">
-                  Drop your resume here, or <span className="text-navy underline underline-offset-2">browse</span>
-                </span>
-                <span className="text-xs text-muted">{step.helper}</span>
-              </button>
+              <PdfDropZone what="resume" helper={step.helper} onFile={(file) => void onFile(file)} />
               <div className="pt-1">
                 <button type="button" onClick={() => setPasting(true)} className={linkButton}>
                   <ClipboardPasteIcon className="h-4 w-4" aria-hidden="true" />
@@ -273,7 +251,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
 
       {step.kind === 'photo' &&
       <>
-          {fileInput}
+          {photoInput}
           <div className="flex flex-wrap items-center gap-2 p-1">
             <button
             type="button"
@@ -423,7 +401,6 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
 
       {step.kind === 'linkedin' &&
       <div className={knownLinkedin ? 'p-1' : 'border-t border-line pt-2'}>
-          {fileInput}
           {attachment ?
         <div className="flex items-center justify-between gap-2 rounded-lg bg-canvas px-3 py-2 text-sm text-ink">
               <span className="flex min-w-0 items-center gap-2">
@@ -441,16 +418,16 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
               </button>
             </div> :
 
-        <div className="flex flex-wrap items-center gap-1">
-              <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className={linkButton}>
-                <PaperclipIcon className="h-4 w-4" aria-hidden="true" />
-                Upload your LinkedIn PDF
-              </button>
-              <button type="button" disabled={busy} onClick={() => setPasting((p) => !p)} className={linkButton}>
-                <ClipboardPasteIcon className="h-4 w-4" aria-hidden="true" />
-                {pasting ? 'Hide pasted text' : 'or paste profile text'}
-              </button>
-            </div>
+        <>
+              <PdfDropZone what="LinkedIn PDF" helper="PDF, up to 5 MB" size="compact" disabled={busy} onFile={(file) => void onFile(file)} />
+              <div className="flex flex-wrap items-center justify-between gap-1 pt-1">
+                <LinkedInPdfHelp />
+                <button type="button" disabled={busy} onClick={() => setPasting((p) => !p)} className={linkButton}>
+                  <ClipboardPasteIcon className="h-4 w-4" aria-hidden="true" />
+                  {pasting ? 'Hide pasted text' : 'or paste profile text'}
+                </button>
+              </div>
+            </>
         }
           {pasting && !attachment && pasteBox('Paste your LinkedIn profile text', 'Paste your LinkedIn About, Experience, and Skills sections…')}
           <p className="px-1 pt-1.5 text-xs text-muted">{step.helper}</p>

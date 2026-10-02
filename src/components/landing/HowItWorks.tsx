@@ -3,15 +3,15 @@ import React from 'react';
 const steps = [
 {
   title: 'Tell us about you',
-  body: 'Drop in your resume and LinkedIn, then answer a couple of quick questions. We build a profile recruiters can scan in seconds.'
+  body: 'Upload your resume, add your LinkedIn if you like, and name the companies you want to meet. We turn it into a profile in about a minute.'
 },
 {
-  title: 'Connect your calendars',
-  body: 'Link Google Calendar and BYU’s career, club, department, and alumni calendars so nothing slips through.'
+  title: 'We check campus calendars',
+  body: 'We pull career fairs, info sessions, and club events from BYU’s career and student calendars. Connect Google Calendar to see conflicts.'
 },
 {
   title: 'Show up to the right rooms',
-  body: 'See the events and people that fit you best, without conflicts, and add them to your calendar in one tap.'
+  body: 'See which events fit you best, which companies will be there, and why, then add them to your calendar in one tap.'
 }];
 
 

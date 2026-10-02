@@ -20,7 +20,7 @@ const linkedin: OnboardingStep = {
   id: 'linkedin',
   kind: 'linkedin',
   prompt: 'What’s your LinkedIn? Add your profile URL so recruiters can find you. If you want me to read it too, upload your LinkedIn PDF or paste the profile text.',
-  helper: 'LinkedIn needs a login, so I can’t read a profile from its URL alone. On your profile, click More → Save to PDF.',
+  helper: 'LinkedIn needs a login, so I can’t read a profile from its URL alone. Its PDF lets me read it.',
   placeholder: 'https://www.linkedin.com/in/…',
   validate: 'linkedin'
 };
@@ -76,7 +76,7 @@ function foundLinkedin(url: string): OnboardingStep {
   return {
     ...linkedin,
     knownUrl: withProtocol(url),
-    helper: 'To get the PDF, open your LinkedIn profile and click More → Save to PDF.',
+    helper: 'Optional. The PDF gives me your full experience and skills.',
     prompt: `Found your LinkedIn: ${prettyUrl(url)}. It’ll be linked on your profile. Want me to read the full profile for more detail? Upload its PDF or paste the text, or just continue.`
   };
 }

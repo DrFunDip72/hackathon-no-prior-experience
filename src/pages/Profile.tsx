@@ -15,7 +15,8 @@ import { InterestsSection } from '../components/profile/InterestsSection';
 import { VisibilityPanel } from '../components/profile/VisibilityPanel';
 import { useSession } from '../contexts/SessionContext';
 import { useEventFeed } from '../hooks/useEventFeed';
-import { formatDay, formatTimeRange } from '../utils/dates';
+import { formatDay, formatTimeRange, isHappeningNow } from '../utils/dates';
+import { matchLabel } from '../utils/matching';
 import type { Profile as ProfileData } from '../types/profile';
 
 export function Profile() {
@@ -134,9 +135,16 @@ export function Profile() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-ink">{item.event.title}</p>
-                        <p className="text-xs text-muted">{formatDay(item.start)}, {formatTimeRange(item.start, item.end)}</p>
+                        <p className="text-xs text-muted">
+                          {isHappeningNow(item.start, item.end) ?
+                          <span className="font-medium text-success-700">Happening now</span> :
+                          formatDay(item.start)}
+                          , {formatTimeRange(item.start, item.end)}
+                        </p>
                       </div>
-                      <span className="shrink-0 text-sm font-semibold tabular-nums text-success-700">{item.score}%</span>
+                      <span className={`shrink-0 whitespace-nowrap text-sm font-semibold ${item.reasons.length ? matchLabel(item.score).className : 'text-muted'}`}>
+                        {item.reasons.length ? matchLabel(item.score).label : '—'}
+                      </span>
                     </div>
                     {item.reason && <p className="mt-1 line-clamp-2 text-xs text-ink">{item.reason}</p>}
                   </li>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { PencilIcon } from 'lucide-react';
+import { LogoMark } from '../Logo';
 
 interface ChatBubbleProps {
   role: 'assistant' | 'user';
@@ -15,17 +16,15 @@ const enter = {
   transition: { duration: 0.2, ease: [0.23, 1, 0.32, 1] }
 };
 
+// Bubbles sit over the decorative page background, so both get a near-opaque surface to stay readable.
 export function ChatBubble({ role, children, onEdit, isEditing }: ChatBubbleProps) {
   if (role === 'assistant') {
     return (
       <motion.div {...enter} className="flex gap-3">
-        <span
-          aria-hidden="true"
-          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-navy text-[11px] font-bold text-white">
-          
-          cc
-        </span>
-        <div className="pt-0.5 text-[15px] leading-relaxed text-ink">{children}</div>
+        <LogoMark className="mt-1 h-7 w-7" />
+        <div className="min-w-0 rounded-2xl rounded-tl-md bg-white/90 px-4 py-2.5 text-[15px] leading-relaxed text-ink shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-line backdrop-blur-sm">
+          {children}
+        </div>
       </motion.div>);
 
   }
@@ -33,18 +32,18 @@ export function ChatBubble({ role, children, onEdit, isEditing }: ChatBubbleProp
   return (
     <motion.div {...enter} className="flex flex-col items-end gap-1">
       <div
-        className={`max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] leading-relaxed text-ink ${
-        isEditing ? 'bg-navy-50 ring-1 ring-navy-200' : 'bg-canvas'}`
+        className={`max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] leading-relaxed text-ink ring-1 ${
+        isEditing ? 'bg-navy-50 ring-navy-200' : 'bg-canvas ring-line'}`
         }>
-        
+
         {children}
       </div>
       {onEdit && !isEditing &&
       <button
         type="button"
         onClick={onEdit}
-        className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted transition-colors duration-150 hover:text-ink">
-        
+        className="flex items-center gap-1 rounded-md bg-white/80 px-1.5 py-0.5 text-xs text-muted transition-colors duration-150 hover:text-ink">
+
           <PencilIcon className="h-3 w-3" aria-hidden="true" />
           Edit
         </button>

@@ -30,6 +30,16 @@ From the front-end team (Doorway) to the events API owner. Written 2026-10-02 af
 | P1-4 `GET /companies` | **Done**, with industry and brand color; logos/websites are null until verified ones exist. |
 | P1-5 percent, P1-6 audience, P1-7 profile fields | Not started. |
 | P2 | Sources: BYU calendar, career-services sheet (all month tabs) and CS department are live. See `api.md`. |
+| P2-6 Near-duplicate events (new) | Not started. See below. |
+
+**Front-end consumption (updated by the front-end team, 2026-10-02):**
+- P0-1: consumed. In-progress events stay in the feed (only ended ones drop) and show a "Happening now" tag on cards, the detail panel and the Profile card. The Homecoming Hackathon is the top match while it runs.
+- P0-2: consumed. `verified: false` shows a subtle "Unconfirmed" tag (with a tooltip) on cards and detail; the event is not hidden. Every live event is `true` today, so nothing shows yet.
+- P0-3: consumed. The client re-sort of `companies` is removed; we render the API's order. `programs` shows as a "Programs: …" line in the detail panel, never as logos.
+- P1-1, P1-2: UI built, hidden until data arrives. `people` feeds "People to meet", the "Meet X and N more" line and the Google Calendar description; `registration_url` adds a "Register" button (new tab, `noopener`); `rsvp_required` and `registration_deadline` show "RSVP required" / "Register by Oct 5, 5:00 PM" tags.
+- P1-3: `GET /events?ids=` consumed: "My plan" loads saved events missing from the ranked feed (no score, labelled as saved). `GET /events/:id` is not used yet (no shareable event route in the app).
+- P1-4: consumed. `GET /companies` is fetched once per page load; `brand_color`, `industry` (and `logo_url` once set) override `src/data/employers.ts`, which stays the fallback.
+- P1-5 is now more visible: the team's match colors (<25% red, 25–50% orange, 50–65% yellow, >65% green) on `round(score * 3)` make most non-company matches orange or red (a 2-field match scores ~8, shown as 24%). A `percent` from the API would fix the scale.
 
 ---
 
@@ -257,6 +267,11 @@ interface Event { /* … */
 }
 ```
 
+**P2-6. Merge near-duplicate events** (found 2026-10-02 after P0-3). The same event appears twice under slightly different titles, so the feed lists it twice:
+- "Graduate School Fair" and "Grad School Fair" (both `career_fair`, same score).
+- "Duke University Pratt School of Engineering Graduate School Info Session" and "Duke University Pratt School of Engineering Grad School Info Session" (different times, so they may be two real sessions; please check).
+- Why: duplicates push real events down the ranked list. Normalizing "Grad"/"Graduate" (or a fuzzy title match on the same day and location) in the dedupe step would fix it.
+
 **P2-4. Data freshness on `/health`.** Add `{ ok: true, last_ingest_at: string, event_count: number }`, so we can show "Updated 2 h ago" and spot a stale ingest.
 
 **P2-5. Better `type` and `fields` classification.** 44% of events are `other`, and keyword tagging misfires ("Amazing Race FHE" tagged `product`). A small LLM pass during ingest would fix both.
@@ -267,6 +282,7 @@ interface Event { /* … */
 
 - `relevant_only: true`, results kept in API order, one request per page load or ranking-relevant profile change, error state with Retry.
 - `reason` is the headline on every card, detail sheet and the Profile card.
-- Matched companies are sorted first on the client (works around P0-3).
+- ~~Matched companies are sorted first on the client~~ (removed after P0-3; the API order is used).
 - "People to meet" is hidden when there's no data, and the top card shows attending companies instead.
+- All dates and times are formatted in America/Denver (cards, detail, "Your day", Profile card), and the Google Calendar link passes `ctz=America/Denver`.
 - `source_url` is shown as "View original listing" and added to the Google Calendar event.

@@ -1,10 +1,11 @@
 import React from 'react';
-import { format } from 'date-fns';
 import { Availability } from './Availability';
 import { AddToCalendarButton } from './AddToCalendarButton';
+import { EventBadges } from './EventBadges';
 import { Avatar } from '../ui/Avatar';
 import { EmployerLogo } from '../ui/EmployerLogo';
-import { formatDay, formatTimeRange } from '../../utils/dates';
+import { formatDay, formatDayOfMonth, formatMonth, formatTimeRange } from '../../utils/dates';
+import { matchLabel } from '../../utils/matching';
 import type { ScoredEvent } from '../../types/event';
 
 interface EventCardProps {
@@ -24,7 +25,6 @@ function whyLine(item: ScoredEvent): string {
 
 export function EventCard({ item, variant, selected, added, googleConnected, onSelect, onAdd }: EventCardProps) {
   const { event } = item;
-  const strong = item.score >= 75;
   const frame = `cursor-pointer rounded-xl border bg-white transition-colors duration-150 ${
   selected ? 'border-navy ring-1 ring-navy' : 'border-line hover:border-navy-200'}`;
 
@@ -48,8 +48,7 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
           <div className="shrink-0 text-right">
             {item.reasons.length > 0 ?
             <>
-                <p className="text-3xl font-semibold tabular-nums tracking-tight text-success-700">{item.score}%</p>
-                <p className="text-xs text-muted">match</p>
+                <p className={`text-lg font-semibold tracking-tight sm:text-xl ${matchLabel(item.score).className}`}>{matchLabel(item.score).label}</p>
               </> :
 
             <>
@@ -61,7 +60,8 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
         </div>
 
         <p className="mt-4 text-[15px] text-ink">{whyLine(item)}</p>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <EventBadges item={item} />
           <Availability conflict={item.conflict} googleConnected={googleConnected} />
         </div>
 
@@ -104,8 +104,8 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
   return (
     <article onClick={onSelect} className={`${frame} flex gap-4 p-4`}>
       <div className="flex w-12 shrink-0 flex-col items-center rounded-lg bg-canvas py-1.5" aria-hidden="true">
-        <span className="text-[11px] font-medium uppercase text-muted">{format(item.start, 'MMM')}</span>
-        <span className="text-lg font-semibold tabular-nums leading-tight text-ink">{format(item.start, 'd')}</span>
+        <span className="text-[11px] font-medium uppercase text-muted">{formatMonth(item.start)}</span>
+        <span className="text-lg font-semibold tabular-nums leading-tight text-ink">{formatDayOfMonth(item.start)}</span>
       </div>
 
       <div className="min-w-0 flex-1">
@@ -119,6 +119,7 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
         </p>
         <p className="mt-1.5 line-clamp-2 text-sm text-ink">{whyLine(item)}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          <EventBadges item={item} />
           <Availability conflict={item.conflict} googleConnected={googleConnected} />
           {item.people.length > 0 &&
           <span className="text-xs text-muted">
@@ -129,8 +130,8 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
       </div>
 
       <div className="flex shrink-0 flex-col items-end justify-between gap-3">
-        <span className={`text-base font-semibold tabular-nums ${item.reasons.length === 0 ? 'text-muted' : strong ? 'text-success-700' : 'text-muted'}`}>
-          {item.reasons.length > 0 ? `${item.score}%` : '—'}
+        <span className={`whitespace-nowrap text-sm font-semibold ${item.reasons.length === 0 ? 'text-muted' : matchLabel(item.score).className}`}>
+          {item.reasons.length > 0 ? matchLabel(item.score).label : '—'}
         </span>
         <AddToCalendarButton item={item} added={added} onAdd={onAdd} size="sm" />
       </div>

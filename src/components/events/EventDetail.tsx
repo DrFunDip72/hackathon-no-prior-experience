@@ -1,12 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
-import { CalendarIcon, ExternalLinkIcon, MapPinIcon, XIcon } from 'lucide-react';
+import { CalendarIcon, ExternalLinkIcon, GraduationCapIcon, MapPinIcon, XIcon } from 'lucide-react';
 import { AddToCalendarButton } from './AddToCalendarButton';
+import { EventBadges } from './EventBadges';
 import { PersonRow } from './PersonRow';
 import { EmployerLogo } from '../ui/EmployerLogo';
-import { formatDay, formatClock, formatTimeRange, toMinutes } from '../../utils/dates';
-import { scheduleForDay } from '../../utils/matching';
+import { campusTime, formatDay, formatClock, formatTimeRange, toMinutes } from '../../utils/dates';
+import { matchLabel, scheduleForDay } from '../../utils/matching';
 import type { ScoredEvent } from '../../types/event';
 
 interface EventDetailProps {
@@ -44,12 +44,12 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
             {event.location}
           </p>
         </div>
+        <EventBadges item={item} className="mt-3" />
 
         <div className="mt-5 flex items-baseline gap-2">
           {item.reasons.length > 0 ?
           <>
-              <span className="text-2xl font-semibold tabular-nums text-success-700">{item.score}%</span>
-              <span className="text-sm text-muted">match</span>
+              <span className={`text-xl font-semibold ${matchLabel(item.score).className}`}>{matchLabel(item.score).label}</span>
             </> :
 
           <>
@@ -70,7 +70,7 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
           <ul className="mt-2 space-y-1.5">
               {[
             ...day.map((b) => ({ key: b.id, start: b.start, title: b.title, isEvent: false, conflict: b.title === item.conflict })),
-            { key: 'this', start: format(item.start, 'HH:mm'), title: event.title, isEvent: true, conflict: false }].
+            { key: 'this', start: campusTime(item.start), title: event.title, isEvent: true, conflict: false }].
 
             sort((a, b) => toMinutes(a.start) - toMinutes(b.start)).
             map((row) => ({ ...row, time: formatClock(row.start) })).
@@ -123,6 +123,15 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
             )}
             </div>
           }
+          {event.programs && event.programs.length > 0 &&
+          <p className="mt-3 flex items-start gap-2 text-sm text-ink">
+              <GraduationCapIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+              <span>
+                <span className="text-muted">Programs: </span>
+                {event.programs.join(', ')}
+              </span>
+            </p>
+          }
         </section>
 
         {item.people.length > 0 &&
@@ -140,6 +149,17 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
       </div>
 
       <div className="border-t border-line bg-white p-4">
+        {event.registrationUrl &&
+        <a
+          href={event.registrationUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-navy px-4 py-2 text-sm font-medium text-navy transition-colors duration-150 hover:bg-navy-50">
+
+            Register
+            <ExternalLinkIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          </a>
+        }
         <AddToCalendarButton item={item} added={added} onAdd={onAdd} fullWidth />
         {added &&
         <button type="button" onClick={onRemove} className="mt-2 w-full text-center text-sm text-muted transition-colors duration-150 hover:text-ink">

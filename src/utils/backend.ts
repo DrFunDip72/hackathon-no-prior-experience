@@ -4,13 +4,24 @@
  */
 import { employers as knownEmployers } from '../data/employers';
 import type { CalendarSourceId } from '../types/calendar';
-import type { CampusEvent, EventType } from '../types/event';
+import type { CampusEvent, EventType, Person, PersonKind } from '../types/event';
 import type { Profile } from '../types/profile';
+import { campusParts } from './dates';
 
 export const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '');
 
 const WINDOW_DAYS = 31;
-const CAMPUS_TZ = 'America/Denver';
+
+interface ApiPerson {
+  id: string;
+  name: string;
+  title: string | null;
+  company: string | null;
+  kind: 'recruiter' | 'alumni' | 'speaker' | 'club_lead' | 'host';
+  byu_connection: string | null;
+  tags: string[];
+  linkedin_url: string | null;
+}
 
 interface ApiEvent {
   id: string;
@@ -20,10 +31,16 @@ interface ApiEvent {
   location: string | null;
   type: string;
   companies: string[];
+  programs?: string[];
   fields: string[];
   source: string;
   source_url: string | null;
   description: string | null;
+  verified?: boolean;
+  people?: ApiPerson[];
+  registration_url?: string | null;
+  rsvp_required?: boolean | null;
+  registration_deadline?: string | null;
 }
 
 interface ApiRecommendation {
@@ -32,6 +49,14 @@ interface ApiRecommendation {
   matched_companies: string[];
   matched_fields: string[];
   reason: string;
+}
+
+interface ApiCompany {
+  name: string;
+  kind: 'employer' | 'grad_program' | 'campus_org';
+  industry: string | null;
+  logo_url: string | null;
+  brand_color: string | null;
 }
 
 const TYPE_MAP: Record<string, EventType> = {
@@ -53,6 +78,16 @@ const SOURCE_MAP: Record<string, CalendarSourceId> = {
   byusa: 'byu-clubs'
 };
 
+const PERSON_KIND: Record<ApiPerson['kind'], PersonKind> = {
+  recruiter: 'Recruiter',
+  alumni: 'Alumni',
+  speaker: 'Speaker',
+  club_lead: 'Club lead',
+  host: 'Host'
+};
+
+const GRAY = '#475569';
+
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 /** "Ensign Peak Advisors" -> "EP", "Sodexo" -> "So". */
@@ -62,44 +97,69 @@ function initialsFor(name: string): string {
   return name.slice(0, 2);
 }
 
-/** Employers we have no logo data for still need an id, so register them on first sight. */
+const findEmployer = (name: string) => knownEmployers.find((e) => e.name.toLowerCase() === name.toLowerCase());
+
+/** Every company needs an employer entry for its logo tile, so register unknown ones on first sight. */
 function employerIdFor(name: string): string {
-  const known = knownEmployers.find((e) => e.name.toLowerCase() === name.toLowerCase());
+  const known = findEmployer(name);
   if (known) return known.id;
   const id = slug(name);
   if (!knownEmployers.some((e) => e.id === id)) {
-    knownEmployers.push({ id, name, industry: 'Employer', initials: initialsFor(name), color: '#475569' });
+    knownEmployers.push({ id, name, industry: 'Employer', initials: initialsFor(name), color: GRAY });
   }
   return id;
 }
 
-/** Wall-clock parts of an instant on campus (America/Denver), independent of the browser's zone. */
-function campusParts(date: Date) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: CAMPUS_TZ,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23'
-  }).formatToParts(date);
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-  return { dayIndex: Date.UTC(get('year'), get('month') - 1, get('day')) / 86_400_000, hour: get('hour'), minute: get('minute') };
+let directory: Promise<void> | null = null;
+
+/**
+ * GET /companies, once per page load: brand colors, industries and (later) logos.
+ * src/data/employers.ts stays the fallback when the call fails or a field is null.
+ */
+function loadCompanyDirectory(): Promise<void> {
+  directory ??= fetch(`${API_URL}/companies`).
+  then((res) => res.ok ? res.json() as Promise<ApiCompany[]> : []).
+  then((companies) => {
+    for (const c of companies) {
+      if (c.kind !== 'employer') continue;
+      const existing = findEmployer(c.name);
+      const patch = {
+        ...(c.brand_color ? { color: c.brand_color } : {}),
+        ...(c.industry ? { industry: c.industry } : {}),
+        ...(c.logo_url ? { logoUrl: c.logo_url } : {})
+      };
+      if (existing) Object.assign(existing, patch);else
+      knownEmployers.push({ id: slug(c.name), name: c.name, industry: 'Employer', initials: initialsFor(c.name), color: GRAY, ...patch });
+    }
+  }).
+  catch(() => {
+    directory = null; // try again on the next fetch
+  });
+  return directory;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
-const clean = (text: string | null) => (text ?? '').replace(/\s+/g, ' ').trim();
+const clean = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim();
 
-/** API timestamps are absolute instants; startTime/dayOffset are filled in campus time for code that reads them. */
-function toCampusEvent(rec: ApiRecommendation): CampusEvent {
-  const e = rec.event;
+function toPerson(p: ApiPerson): Person {
+  return {
+    id: p.id,
+    name: clean(p.name),
+    title: clean(p.title),
+    org: clean(p.company),
+    employerId: p.company ? employerIdFor(p.company) : undefined,
+    kind: PERSON_KIND[p.kind] ?? 'Speaker',
+    byuConnection: p.byu_connection ?? undefined,
+    tags: p.tags ?? [],
+    linkedinUrl: p.linkedin_url ?? undefined
+  };
+}
+
+/** Maps an API event (and its ranking, when it came from /recommendations) to the UI's event type. */
+function toCampusEvent(e: ApiEvent, rec?: Omit<ApiRecommendation, 'event'>): CampusEvent {
   const start = new Date(e.start_at);
   const end = e.end_at ? new Date(e.end_at) : new Date(start.getTime() + 60 * 60000);
   const campusStart = campusParts(start);
-  // The student's matched target companies lead, so cards say "Redo, Neighbor and 2 more" rather than an arbitrary pick.
-  const matched = new Set(rec.matched_companies.map((c) => c.toLowerCase()));
-  const companies = [...e.companies].sort((a, b) => Number(matched.has(b.toLowerCase())) - Number(matched.has(a.toLowerCase())));
   return {
     id: e.id,
     title: clean(e.title),
@@ -113,12 +173,19 @@ function toCampusEvent(rec: ApiRecommendation): CampusEvent {
     description: clean(e.description),
     tags: e.fields,
     industries: e.fields,
-    employerIds: companies.map(employerIdFor),
+    // The API orders companies (matched targets first in /recommendations, then alphabetical); keep it.
+    employerIds: e.companies.map(employerIdFor),
     attendeeIds: [],
+    people: (e.people ?? []).map(toPerson),
+    programs: e.programs ?? [],
+    verified: e.verified,
+    registrationUrl: e.registration_url ?? undefined,
+    rsvpRequired: e.rsvp_required ?? undefined,
+    registrationDeadline: e.registration_deadline ?? undefined,
     sourceUrl: e.source_url ?? undefined,
-    apiScore: rec.score,
-    apiReasons: [...rec.matched_companies, ...rec.matched_fields],
-    apiReason: rec.reason
+    apiScore: rec?.score,
+    apiReasons: rec ? [...rec.matched_companies, ...rec.matched_fields] : [],
+    apiReason: rec?.reason ?? 'Saved to your plan. It isn’t in your current ranked matches.'
   };
 }
 
@@ -155,10 +222,17 @@ export function toApiProfile(profile: Profile) {
   };
 }
 
-export async function fetchRecommendedEvents(profile: Profile): Promise<CampusEvent[]> {
+async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
   if (!API_URL) throw new Error('VITE_API_URL is not set');
+  const [res] = await Promise.all([fetch(`${API_URL}${path}`, init), loadCompanyDirectory()]);
+  if (!res.ok) throw new Error(`Events API ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
+/** POST /recommendations: the ranked feed, best first. In-progress events are included. */
+export async function fetchRecommendedEvents(profile: Profile): Promise<CampusEvent[]> {
   const now = new Date();
-  const res = await fetch(`${API_URL}/recommendations`, {
+  const recs = await getJson<ApiRecommendation[]>('/recommendations', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -168,6 +242,12 @@ export async function fetchRecommendedEvents(profile: Profile): Promise<CampusEv
       relevant_only: true
     })
   });
-  if (!res.ok) throw new Error(`Events API ${res.status}`);
-  return ((await res.json()) as ApiRecommendation[]).map(toCampusEvent);
+  return recs.map(({ event, ...rec }) => toCampusEvent(event, rec));
+}
+
+/** GET /events?ids=: saved events, so "My plan" keeps them after they drop out of the ranked feed. Unknown ids are omitted. */
+export async function fetchEventsByIds(ids: string[]): Promise<CampusEvent[]> {
+  if (!ids.length) return [];
+  const events = await getJson<ApiEvent[]>(`/events?ids=${ids.slice(0, 100).map(encodeURIComponent).join(',')}`);
+  return events.map((e) => toCampusEvent(e));
 }

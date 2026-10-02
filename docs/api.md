@@ -177,8 +177,10 @@ Wiring already exists; extend it rather than duplicating it.
 
 | File | Role |
 | --- | --- |
-| [`src/utils/backend.ts`](../src/utils/backend.ts) | Calls `POST /recommendations`, maps the response to the UI's `CampusEvent` type, and maps the Doorway `Profile` onto the profile contract. Exports `API_URL` and `fetchRecommendedEvents(profile)`. |
-| [`src/hooks/useEventFeed.ts`](../src/hooks/useEventFeed.ts) | Uses `fetchRecommendedEvents` when `VITE_API_URL` is set, otherwise falls back to the simulated sample events (`api.fetchEvents`). |
+| [`src/utils/backend.ts`](../src/utils/backend.ts) | Calls `POST /recommendations` and `GET /events?ids=`, loads `GET /companies` once per page load, maps responses to the UI's `CampusEvent` type, and maps the Doorway `Profile` onto the profile contract. Exports `API_URL`, `fetchRecommendedEvents(profile)` and `fetchEventsByIds(ids)`. |
+| [`src/hooks/useEventFeed.ts`](../src/hooks/useEventFeed.ts) | Uses `fetchRecommendedEvents` when `VITE_API_URL` is set, otherwise falls back to the simulated sample events (`api.fetchEvents`). Loads saved "My plan" ids missing from the feed with `fetchEventsByIds`. |
+| [`src/utils/dates.ts`](../src/utils/dates.ts) | All date/time formatting, in America/Denver via `Intl`. |
+| [`src/components/events/EventBadges.tsx`](../src/components/events/EventBadges.tsx) | "Happening now", "Unconfirmed", "RSVP required", "Register by …" tags, each shown only when the data supports it. |
 | [`src/utils/matching.ts`](../src/utils/matching.ts) | `scoreEvent` uses the API's score and reasons when the event carries `apiScore`. |
 | [`src/types/event.ts`](../src/types/event.ts) | `CampusEvent` has optional `startAt`, `apiScore`, `apiReasons`, `apiReason`. `ScoredEvent` has optional `reason`. |
 
@@ -188,16 +190,19 @@ Wiring already exists; extend it rather than duplicating it.
 - `type`: `career_fair`→Career fair, `info_session`→Info session, `hackathon`/`case_competition`→Workshop, `lecture`→Talk, `club_event`→Club, `networking`/`tabling`→Networking, `other`→Talk.
 - `source`→calendar source filter: `careerlaunch`/`rollins`/`handshake_manual`→`byu-careers`; `clubs`/`byusa`→`byu-clubs`; everything else→`byu-departments`.
 - `source_url`→`sourceUrl` (the "View original listing" link in the detail sheet and the Google Calendar event).
-- `companies`→`employerIds`. Companies not in `src/data/employers.ts` are registered on the fly with a gray placeholder logo and initials. Add a real entry to `employers.ts` to give a company a color or industry.
+- `companies`→`employerIds`, in the API's order (no client re-sort). Colors, industries and logos come from `GET /companies`, falling back to `src/data/employers.ts`; unknown companies get a gray tile with initials.
+- `programs`→`programs`, shown as a "Programs: …" line in the detail panel, never as logos.
+- `verified: false`→"Unconfirmed" tag. `people`→`people` ("People to meet", "Meet X"), hidden when empty. `registration_url`→"Register" button; `rsvp_required`/`registration_deadline`→tags. All hidden while null.
 - `fields`→`tags` and `industries`.
-- The score shown in the UI is `round(apiScore * 3)` capped at 99, because the API score tops out near 30.
+- The score shown in the UI is `round(apiScore * 3)` capped at 99, because the API score tops out near 30. Colors: <25% red, 25–50% orange, 50–65% yellow, >65% green. Saved events loaded by id have no score and show "—".
 
 **Known gaps and gotchas**
-- `attendeeIds` is always empty for API events (the API has no people data yet), so the UI hides "People to meet" and the top card shows the attending companies instead. Requested in [`api-requests.md`](./api-requests.md).
+- `people` is empty for every event today, so "People to meet" stays hidden and the top card shows the attending companies instead.
+- In-progress events stay in the feed with a "Happening now" tag; only ended events are dropped client-side.
 - The Profile page's "Events that fit this profile" uses `useEventFeed` (same request as the Events page) and shows the top 3 with their `reason`.
 - `toApiProfile` (exported from `backend.ts`) maps `interests.companies` to `target_companies`; `lookingFor.roleTypes` plus `employmentType` ("internship" or "full-time") to `target_roles`; and `interests.industries` (split into words, so "Data & Analytics" becomes "data" and "analytics"), `education.major` and `topSkills` (or the first grouped skills) to `fields`. `education.gradYear` becomes `grad_date` (`YYYY` or `YYYY-MM`). `user_id` is not sent, because the only id is the student's email.
 - `useEventFeed` keeps the API's order (no client re-sort) and refetches only when the `toApiProfile` output changes.
-- `companies` order varies between calls, so `toCampusEvent` puts `matched_companies` first. `start_at`/`end_at` currently come back as UTC `Z` strings, not with the Denver offset described above; `new Date()` handles both.
+- `start_at`/`end_at` are UTC `Z` strings; the UI formats them in America/Denver (`src/utils/dates.ts`), and the Google Calendar link passes `ctz=America/Denver`.
 - `description` can be long and contain boilerplate. Truncate in cards.
 - Events are only returned inside the `from`/`to` window. The UI currently asks for 31 days. If you add a "next 90 days" filter, change the window in `fetchRecommendedEvents`, not just a client-side filter.
 - Do not call the API once per keystroke or per card. Fetch once per page load or profile change.
@@ -264,6 +269,7 @@ Add a line to the changelog below for each change.
 
 ## Changelog
 
+- 2026-10-02: Front end consumes the new API: "Happening now" for in-progress events, "Unconfirmed" tag for `verified: false`, API `companies` order (client re-sort removed), `programs` shown separately, `GET /events?ids=` for "My plan", `GET /companies` for colors (cached per page load), UI for `people` and registration fields (hidden while empty), Denver time everywhere, match-score colors.
 - 2026-10-02: Front-end team's requests (see `docs/api-requests.md`): `/events` and `/recommendations` now include events still in progress; `verified` flag (false for submissions and unconfirmed rows); `companies` cleaned (deduped, alphabetical, matched-first in `/recommendations`, subtitles like "- Networking Readiness" stripped, graduate programs moved to new `programs`); new `people`, `registration_url`, `rsvp_required`, `registration_deadline` fields (empty until a source provides them; upserts only fill gaps); new `GET /events/:id`, `GET /events?ids=`, `GET /companies`. Upserts merge `verified` as "verified once any trusted source lists it".
 - 2026-10-02: Added the CS department source (`ingest-cs.js`: listing, event pages, per-event ICS) and automatic sheet tab discovery (the September tab added 5 events). BYU Calendar events are now classified using their `TagsNames` too. Removed the 16 fake placeholder seed events; the only seed left is the real Homecoming Hackathon with its sponsors. The live event count is now about 80 for Sep 1 to Dec 31.
 - 2026-10-02: Added the BYU Career Services sheet source (17 October events: Boeing, Sodexo, Ensign Peak, HXP, Disney College Program, and more) and corrected the docs: responses are UTC, display in America/Denver. The seeded "CS Hackathon" was confirmed to be the sheet's "Homecoming Hackathon" (Oct 2, ESC Annex, 8 AM-8 PM) and was renamed to match, keeping its Redo/Neighbor/Waystar sponsors.
