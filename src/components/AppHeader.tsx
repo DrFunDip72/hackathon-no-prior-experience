@@ -69,7 +69,7 @@ export function AppHeader({ audience = 'student' }: {audience?: 'student' | 'emp
         <div className="flex items-center gap-3">
             <span className="hidden rounded-full bg-navy-50 px-2.5 py-1 text-xs font-medium text-navy sm:inline-block">Employer</span>
             {employer && <Avatar name={employer.name} size="sm" />}
-            <Link to="/" className="whitespace-nowrap text-sm font-medium text-navy hover:underline">
+            <Link to="/" className="-my-3 whitespace-nowrap py-3 text-sm font-medium text-navy hover:underline sm:my-0 sm:py-0">
               <span className="sm:hidden">Students</span>
               <span className="hidden sm:inline">Back to student site</span>
             </Link>
@@ -111,21 +111,16 @@ export function AppHeader({ audience = 'student' }: {audience?: 'student' | 'emp
                     <p className="truncate text-sm font-medium text-ink">{user.name}</p>
                     <p className="truncate text-xs text-muted">{user.email}</p>
                   </div>
-                  {showNav &&
-              <div className="border-t border-line py-1 sm:hidden">
-                      {navItems.map((item) =>
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  role="menuitem"
-                  onClick={() => setOpen(false)}
-                  className="block rounded-md px-3 py-2 text-sm text-ink hover:bg-canvas">
-                  
-                          {item.label}
-                        </NavLink>
-                )}
-                    </div>
-              }
+                  {/* Phones: the tab row below the header covers the student pages; this is the way over to the employer side. */}
+                  <div className="border-t border-line py-1 sm:hidden">
+                    <Link
+                    to="/employer"
+                    role="menuitem"
+                    onClick={() => setOpen(false)}
+                    className="flex min-h-[44px] items-center rounded-md px-3 text-sm text-ink hover:bg-canvas">
+                      For employers
+                    </Link>
+                  </div>
                   <div className="border-t border-line pt-1">
                     <button
                   type="button"
@@ -134,8 +129,8 @@ export function AppHeader({ audience = 'student' }: {audience?: 'student' | 'emp
                     logOut();
                     navigate('/');
                   }}
-                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-ink transition-colors duration-150 hover:bg-canvas">
-                  
+                  className="flex min-h-[44px] w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-ink transition-colors duration-150 hover:bg-canvas sm:min-h-0">
+
                       <LogOutIcon className="h-4 w-4 text-muted" aria-hidden="true" />
                       Log out
                     </button>
@@ -146,6 +141,23 @@ export function AppHeader({ audience = 'student' }: {audience?: 'student' | 'emp
           </div>
         }
       </div>
+
+      {/* Phones: the student nav is a full-width tab row, so every page is one tap away. */}
+      {!isEmployer && showNav &&
+      <nav aria-label="Main" className="flex border-t border-line sm:hidden">
+          {navItems.map((item) =>
+        <NavLink
+          key={item.to}
+          to={item.to}
+          className={({ isActive }) =>
+          `flex h-11 flex-1 items-center justify-center border-b-2 text-sm font-medium transition-colors duration-150 ${
+          isActive ? 'border-navy text-ink' : 'border-transparent text-muted'}`
+          }>
+              {item.label}
+            </NavLink>
+        )}
+        </nav>
+      }
     </header>);
 
 }

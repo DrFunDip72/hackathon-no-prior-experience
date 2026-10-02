@@ -64,6 +64,13 @@ export function Landing() {
             <div className="mt-10">
               <HeroPrompt destination={appHome} />
             </div>
+            {/* The header has no room for "For employers" on phones, so it lives here. */}
+            <Link
+              to="/employer"
+              className="mt-4 inline-flex min-h-[44px] items-center gap-1.5 px-2 text-sm font-medium text-navy hover:underline sm:hidden">
+              Hiring? Find students for your role
+              <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
+            </Link>
           </div>
         </section>
 
