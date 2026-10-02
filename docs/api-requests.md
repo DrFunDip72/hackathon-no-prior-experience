@@ -29,7 +29,7 @@ From the front-end team (Doorway) to the events API owner. Written 2026-10-02 af
 | P1-3 Fetch by id | **Done.** `GET /events/:id` and `GET /events?ids=`. |
 | P1-4 `GET /companies` | **Done**, with industry and brand color; logos/websites are null until verified ones exist. |
 | P1-5 percent, P1-6 audience, P1-7 profile fields | Not started. |
-| P2 | Sources: BYU calendar, career-services sheet (all month tabs) and CS department are live. See `api.md`. |
+| P2 | Sources: BYU calendar, career-services sheet (all month tabs) and CS department are live. Slack uses the owner `/paste` flow (custom apps blocked); single/bulk submission privacy and `dry_run` previews are tested locally, with live extraction **blocked on the Anthropic key**. See `api.md` and `slack-setup.md`. |
 | P2-6 Near-duplicate events (new) | Not started. See below. |
 
 **Front-end consumption (updated by the front-end team, 2026-10-02):**

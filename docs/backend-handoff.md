@@ -25,7 +25,7 @@ Hackathon context: one-day build, favor working end to end, keep changes minimal
 | Keyword tagging (type, companies, fields) | `api/src/classify.js` (`KNOWN_COMPANIES` is where new employers go) |
 | LLM extraction for `/submit` | `api/src/extract.js` |
 | Seed data | `api/src/seed-events.js`, `seed-companies.js`, `seed.js` |
-| Tests | `api/test/*.test.js`, run `cd api && npm test` (24 tests) |
+| Tests | `api/test/*.test.js`, run `cd api && npm test` (37 tests) |
 | Front-end adapter | `src/utils/backend.ts`, `src/hooks/useEventFeed.ts` |
 
 Note: `api/parse-resume.ts` is the front end's Vercel function (resume parsing with Gemini). It shares the `api/` folder with this backend by accident of history; `.vercelignore` keeps the backend files out of Vercel. Don't move either without updating that file.
@@ -66,10 +66,11 @@ There is no CI for the API: deploys are manual with the command above. Commit an
 - API live. ~80 events for Sep-Dec 2026, all from real sources: BYU calendar (~50 per 30 days, mostly `other`), career-services sheet (Sep + Oct tabs, ~22 events, company-named info sessions and tabling), CS department (3 events including the Homecoming Hackathon with Redo/Neighbor/Waystar sponsors).
 - The demo path works: a profile targeting Redo gets the Homecoming Hackathon (Fri Oct 2, ESC Annex, 8 AM-8 PM) first, with a reason string.
 - Done from the front-end wishlist: in-progress events, `verified`, cleaned `companies` plus `programs`, `GET /events/:id`, `GET /events?ids=`, `GET /companies`. See the status table in `api-requests.md`.
-- 21 unit tests passing. No integration tests (no local database).
+- 37 unit tests passing, including single/bulk extraction privacy, validation, no-write previews and provider error handling. Providers and database writes are mocked; no local database integration tests.
+- Both submission endpoints support `dry_run: true` for fake/public text or image smoke tests without storing events. Raw text/images and model-supplied people/metadata are discarded; bulk keeps only the extracted event summary and a public event link. Live extraction remains blocked on the owner's Anthropic key. See `docs/slack-setup.md`.
 
 ## Not done / next steps (rough priority)
-1. **Get an Anthropic API key** (https://console.anthropic.com, add a few dollars of credit), set it on `doorway-api` yourself with `railway variables --service doorway-api --set ANTHROPIC_API_KEY=...`, then test `POST /submit` with a sample email and a flyer image. Use only fake or public event text when testing. The key also unblocks the sources below.
+1. **Get an Anthropic API key** (https://console.anthropic.com, add a few dollars of credit), set it on `doorway-api` using `railway variables --set-from-stdin` (silent-input commands in `docs/slack-setup.md`), then test `POST /submit` with `dry_run: true`, a sample email and a flyer image. Use only fake or public event text when testing. The key also unblocks the sources below.
 2. **BYU IS Slack source** (jobs/internships channel and `a_team`): career-fair and info-session posts. The workspace blocks custom Slack apps, so the owner copies channel text into the `/paste` page (`https://doorway-api-production-db29.up.railway.app/paste`), which calls `POST /submit/bulk` (built, deployed, tested up to the LLM call; needs `ANTHROPIC_API_KEY`). Only the extracted event is stored, never poster names or raw messages. If a Slack admin ever approves a read-only app, add a receiver that feeds the same extraction (`extractEvents` + `buildBulkRows` in `api/src/extract.js`). Job listings don't fit the events model and would need their own table and endpoint (not built; events only for now).
 3. **More sources:** Rollins Center (https://marriott.byu.edu/cet), club pages, college calendars. They use page text plus LLM extraction. `source` values `rollins`, `clubs`, `byusa` are reserved.
 4. **People per event:** `people` exists on every event and is empty. Fill it only from names public on a listing or employer-submitted. The shape is in `api.md`.
