@@ -49,7 +49,7 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
           <div className="shrink-0 text-right">
             {match ?
             <>
-                <p className={`text-lg font-semibold tracking-tight sm:text-xl ${match.className}`}>{match.label}</p>
+                <p className={`text-lg font-semibold tracking-tight sm:text-xl ${match.className}`}>{match.percent}%</p>
               </> :
 
             <>
@@ -132,7 +132,7 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
 
       <div className="flex shrink-0 flex-col items-end justify-between gap-3">
         <span className={`whitespace-nowrap text-sm font-semibold ${match ? match.className : 'text-muted'}`}>
-          {match ? match.label : '—'}
+          {match ? `${match.percent}%` : '—'}
         </span>
         <AddToCalendarButton item={item} added={added} onAdd={onAdd} size="sm" />
       </div>

@@ -25,7 +25,7 @@ export function StudentResultCard({ item }: {item: ScoredStudent;}) {
             </div>
             <div className="shrink-0 text-right">
               <p className={`text-lg font-semibold tracking-tight ${score > 0 ? matchLabel(score).className : 'text-muted'}`}>
-                {score > 0 ? matchLabel(score).label : '—'}
+                {score > 0 ? `${score}%` : '—'}
               </p>
             </div>
           </div>
