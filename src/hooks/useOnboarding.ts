@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useSession } from '../contexts/SessionContext';
-import { stepsFor } from '../data/onboardingSteps';
+import { canonicalRoleList, stepsFor } from '../data/onboardingSteps';
 import { api } from '../utils/api';
 import { buildProfile, describeExtract, suggestedAnswer } from '../utils/profileBuilder';
 import { readProfileSources, stripDataUrl } from '../utils/resumeReader';
@@ -143,7 +143,8 @@ export function useOnboarding() {
 
   const initialValueFor = (id: StepId): InitialValue => {
     const existing = draft.answers[id];
-    if (existing && !existing.skipped) return { value: existing.value, suggested: false };
+    // A saved roles answer may hold variants of a chip ("UX designer"); map them so the chip shows selected.
+    if (existing && !existing.skipped) return { value: id === 'roles' ? canonicalRoleList(existing.value) : existing.value, suggested: false };
     if (id === 'goals') {
       const fromLanding = takeLandingPrompt();
       if (fromLanding) return { value: fromLanding, suggested: false };

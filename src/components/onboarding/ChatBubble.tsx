@@ -42,7 +42,7 @@ export function ChatBubble({ role, children, onEdit, isEditing }: ChatBubbleProp
       <button
         type="button"
         onClick={onEdit}
-        className="flex items-center gap-1 rounded-md bg-white/80 px-1.5 py-0.5 text-xs text-muted transition-colors duration-150 hover:text-ink">
+        className="tap-target flex items-center gap-1 rounded-md bg-white/80 px-1.5 py-0.5 text-xs text-muted transition-colors duration-150 hover:text-ink">
 
           <PencilIcon className="h-3 w-3" aria-hidden="true" />
           Edit

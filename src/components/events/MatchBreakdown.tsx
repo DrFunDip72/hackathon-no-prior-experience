@@ -76,7 +76,7 @@ export function MatchBreakdown({ item, className = 'text-sm font-semibold', alig
         aria-controls={panelId}
         aria-haspopup="dialog"
         onClick={() => setOpen((o) => !o)}
-        className={`whitespace-nowrap rounded tabular-nums underline decoration-dotted decoration-1 underline-offset-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2 ${className} ${match.className}`}>
+        className={`tap-target whitespace-nowrap rounded tabular-nums underline decoration-dotted decoration-1 underline-offset-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2 ${className} ${match.className}`}>
         {match.percent}% match
         <span className="sr-only">, why this match?</span>
       </button>

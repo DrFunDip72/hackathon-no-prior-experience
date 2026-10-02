@@ -85,7 +85,7 @@ export function ProfileHeader({ profile, editable, onSave }: SectionProps) {
           <button
             type="button"
             onClick={ed.start}
-            className="mt-3 flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas">
+            className="tap-target mt-3 flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas">
             
               <PencilIcon className="h-3.5 w-3.5" aria-hidden="true" />
               Edit intro
@@ -164,7 +164,7 @@ export function ProfileHeader({ profile, editable, onSave }: SectionProps) {
                   </span>)
             }
               {editable && links.length < 2 &&
-            <button type="button" onClick={ed.start} className="px-1 text-sm font-medium text-navy hover:underline">
+            <button type="button" onClick={ed.start} className="tap-target px-1 text-sm font-medium text-navy hover:underline">
                   Add {profile.handshakeUrl ? 'LinkedIn' : profile.linkedinUrl ? 'Handshake' : 'Handshake & LinkedIn'}
                 </button>
             }

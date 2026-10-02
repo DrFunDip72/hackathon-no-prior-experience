@@ -1,4 +1,5 @@
 import React from 'react';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowRightIcon } from 'lucide-react';
 import { Logo } from '../components/Logo';
@@ -10,6 +11,7 @@ import { useResumeUpload } from '../components/landing/useResumeUpload';
 import { useSession } from '../contexts/SessionContext';
 
 export function Landing() {
+  usePageTitle();
   const { user, state } = useSession();
   const appHome = state.profile ? '/events' : '/onboarding';
   // Compare hero treatments with ?bg=byu-aurora (default), ?bg=byu-deep, or ?bg=byu-sky.

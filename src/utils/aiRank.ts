@@ -8,7 +8,7 @@ import type { ScoredEvent } from '../types/event';
 import type { Profile } from '../types/profile';
 
 const ENDPOINT = '/api/rank-events';
-const CACHE_KEY = 'doorway_ai_rank_v2'; // v2: role boost from the API's fields
+const CACHE_KEY = 'doorway_ai_rank_v3'; // v2: role boost from the API's fields; v3: "engineer" ~ "engineering" in it
 const CACHE_ENTRIES = 6;
 const CACHE_TTL_MS = 12 * 3_600_000;
 const MAX_EVENTS = 98;

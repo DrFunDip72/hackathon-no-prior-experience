@@ -35,7 +35,7 @@ export function SectionCard({ title, id, description, editable, editing, saving,
           type="button"
           onClick={onEdit}
           aria-label={`Edit ${title}`}
-          className="-mr-2 -mt-1 rounded-md p-2 text-muted transition-colors duration-150 hover:bg-canvas hover:text-ink">
+          className="tap-target -mr-2 -mt-1 rounded-md p-2 text-muted transition-colors duration-150 hover:bg-canvas hover:text-ink">
           
             <PencilIcon className="h-4 w-4" aria-hidden="true" />
           </button>

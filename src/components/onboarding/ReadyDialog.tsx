@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { SparklesIcon } from 'lucide-react';
+import { SparklesIcon, XIcon } from 'lucide-react';
 
 interface ReadyDialogProps {
   open: boolean;
@@ -62,7 +62,9 @@ export function ReadyDialog({ open, summary, onBuild, onClose, fallbackFocus, ac
         transition={{ duration: reduce ? 0 : 0.15 }}
         onKeyDown={onKeyDown}>
 
-          <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
+          {/* No close on backdrop click: the dialog opens right after the last answer, so a follow-through tap would
+            dismiss it. Esc, the X and "Review answers" close it. preventDefault keeps focus in the dialog, so Esc still works. */}
+          <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onMouseDown={(e) => e.preventDefault()} aria-hidden="true" />
           <motion.div
           ref={panelRef}
           role="dialog"
@@ -75,6 +77,14 @@ export function ReadyDialog({ open, summary, onBuild, onClose, fallbackFocus, ac
           exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 4 }}
           transition={{ duration: reduce ? 0 : 0.2, ease: [0.23, 1, 0.32, 1] }}
           className="relative w-full max-w-sm rounded-2xl border focus:outline-none border-line bg-white p-6 text-center shadow-[0_24px_48px_-12px_rgba(15,23,42,0.25)]">
+
+            <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="tap-target absolute right-3 top-3 rounded-md p-1.5 text-muted transition-colors duration-150 hover:bg-canvas hover:text-ink">
+              <XIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
 
             <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-navy-50 text-navy">
               <SparklesIcon className="h-5 w-5" aria-hidden="true" />

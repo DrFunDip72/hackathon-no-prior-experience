@@ -39,7 +39,7 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
           <div className="min-w-0">
             <p className="text-xs font-semibold text-navy">Your top match</p>
             <h2 className="mt-1.5">
-              <button type="button" onClick={onSelect} className="text-left text-xl font-semibold leading-snug tracking-tight text-ink focus:outline-none focus-visible:underline sm:text-2xl">
+              <button type="button" onClick={onSelect} className="text-left text-xl font-semibold leading-snug tracking-tight text-ink sm:text-2xl">
                 {event.title}
               </button>
             </h2>
@@ -110,7 +110,7 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
 
       <div className="min-w-0 flex-1">
         <h3>
-          <button type="button" onClick={onSelect} className="text-left font-semibold leading-snug text-ink focus:outline-none focus-visible:underline">
+          <button type="button" onClick={onSelect} className="text-left font-semibold leading-snug text-ink">
             {event.title}
           </button>
         </h3>

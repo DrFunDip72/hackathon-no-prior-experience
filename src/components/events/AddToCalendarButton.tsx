@@ -26,7 +26,7 @@ export function AddToCalendarButton({ item, added, onAdd, size = 'md', fullWidth
       type="button"
       onClick={handleClick}
       aria-label={added ? `${item.event.title} is in your plan. Open in Google Calendar again` : `Add ${item.event.title} to Google Calendar`}
-      className={`inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg font-medium transition-colors duration-150 ${
+      className={`tap-target inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg font-medium transition-colors duration-150 ${
       size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-sm'} ${
       fullWidth ? 'w-full' : ''} ${
       added ? 'border border-success/30 bg-success-50 text-success-700 hover:bg-success-50/70' : 'bg-navy text-white hover:bg-navy-700'}`

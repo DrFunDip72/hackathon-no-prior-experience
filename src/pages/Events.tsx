@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CalendarIcon, RefreshCwIcon, SlidersHorizontalIcon } from 'lucide-react';
+import { CalendarIcon, ChevronDownIcon, RefreshCwIcon, SlidersHorizontalIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppHeader } from '../components/AppHeader';
 import { EventCard } from '../components/events/EventCard';
@@ -13,11 +13,33 @@ import { GoogleIcon } from '../components/ui/GoogleIcon';
 import { useSession } from '../contexts/SessionContext';
 import { useEventFeed } from '../hooks/useEventFeed';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { AI_GOOD_MATCH, GOOD_MATCH, isGoodMatch } from '../utils/matching';
+import type { ScoredEvent } from '../types/event';
 
 type Tab = 'forYou' | 'plan';
 
+const CONNECT_DISMISSED_KEY = 'doorway_connect_banner_dismissed';
+
+/** The Connect Google Calendar suggestion stays dismissed on this device. Storage can be blocked, so never throw. */
+function readConnectDismissed(): boolean {
+  try {
+    return localStorage.getItem(CONNECT_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveConnectDismissed(): void {
+  try {
+    localStorage.setItem(CONNECT_DISMISSED_KEY, '1');
+  } catch {
+    // Dismissed for this visit only.
+  }
+}
+
 export function Events() {
+  usePageTitle('Events');
   const feed = useEventFeed();
   const { state, updateState } = useSession();
   const isDesktop = useMediaQuery('(min-width: 1024px)');
@@ -25,14 +47,20 @@ export function Events() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [showWeaker, setShowWeaker] = useState(false);
+  const [connectDismissed, setConnectDismissed] = useState(readConnectDismissed);
 
   const list = tab === 'forYou' ? feed.items : feed.planned;
-  const selected = list.find((i) => i.event.id === selectedId) ?? list[0] ?? null;
   const added = new Set(state.addedEventIds);
   // Same thresholds as the labels (isGoodMatch): nothing reaching "Good match" means nothing better than "Worth a look".
   // Without AI, an event with no match reasons (shown as "—") counts as no match, not a weak one.
   const noGoodMatches = tab === 'forYou' && list.length > 0 && !list.some(isGoodMatch);
   const aiRanked = list.some((i) => i.aiPercent !== undefined);
+  // "For you" shows Good-or-better fits; weaker ones (AI only) wait behind the expander at the bottom.
+  const weaker = tab === 'forYou' ? feed.weaker : [];
+  const lead = tab === 'plan' ? feed.planned : noGoodMatches ? [] : feed.top;
+  const visible = showWeaker ? [...lead, ...weaker] : lead;
+  const selected = visible.find((i) => i.event.id === selectedId) ?? visible[0] ?? null;
 
   // Clicking "Events" (nav or logo) while already here is a navigation to the same path with a new key:
   // go back to the default view, the "For you" tab at the top with no filters.
@@ -43,6 +71,7 @@ export function Events() {
     firstLocation.current = locationKey;
     setTab('forYou');
     setSelectedId(null);
+    setShowWeaker(false);
     setSheetOpen(false);
     setFiltersOpen(false);
     feed.resetFilters();
@@ -73,6 +102,34 @@ export function Events() {
     if (!isDesktop) setSheetOpen(true);
   };
 
+  const card = (item: ScoredEvent, variant: 'hero' | 'row') =>
+  <EventCard
+    key={item.event.id}
+    item={item}
+    variant={variant}
+    selected={isDesktop && selected?.event.id === item.event.id}
+    added={added.has(item.event.id)}
+    googleConnected={feed.googleConnected}
+    onSelect={() => select(item.event.id)}
+    onAdd={() => markAdded(item.event.id)} />;
+
+
+  // Counts what's actually listed: the tab, the filters, and (with AI) the Good-or-better fits shown up top.
+  const count = (n: number, noun: string, plural = `${noun}s`) => `${n} ${n === 1 ? noun : plural}`;
+  const subtitle = feed.loading ?
+  'Syncing BYU calendars…' :
+  tab === 'plan' ?
+  feed.planned.length ? `${count(feed.planned.length, 'event')} in your plan, in date order` : 'Nothing in your plan yet' :
+  [
+  feed.filtersActive ?
+  `${feed.items.length} of ${count(feed.total, 'event')} ${feed.items.length === 1 ? 'matches' : 'match'} your filters` :
+  weaker.length ?
+  `${count(feed.top.length, 'good match', 'good matches')} out of ${count(feed.items.length, 'upcoming event')}` :
+  `${count(feed.items.length, 'upcoming event')}, ranked by how well ${feed.items.length === 1 ? 'it fits' : 'they fit'} your profile`,
+  feed.hiddenCount ? `${feed.hiddenCount} off-topic hidden` : ''].
+  filter(Boolean).
+  join(' · ');
+
   const filterPanel =
   <EventFilters
     filters={feed.filters}
@@ -100,22 +157,17 @@ export function Events() {
     <div className="min-h-screen w-full bg-canvas">
       <AppHeader />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-ink">Events for you</h1>
-            <p className="mt-1 text-sm text-muted">
-              {feed.loading ?
-              'Syncing BYU calendars…' :
-              `${feed.total} upcoming events ranked by how well they fit your profile${
-              feed.hiddenCount ? ` · ${feed.hiddenCount} off-topic hidden` : ''}`}
-            </p>
+            <h1 className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">Events for you</h1>
+            <p className="mt-1 text-sm text-muted">{subtitle}</p>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
               <a
                 href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(`webcal://${window.location.host}/calendar.ics`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas">
+                className="tap-target inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas sm:px-3.5 sm:py-2">
                 <GoogleIcon className="h-4 w-4" />
                 Subscribe in Google Calendar
               </a>
@@ -126,7 +178,7 @@ export function Events() {
                   () => toast.success('Calendar link copied', { description: 'Paste it into Apple Calendar or Outlook.' }),
                   () => toast.error('Could not copy the link')
                 )}
-                className="text-sm font-medium text-navy hover:underline">
+                className="tap-target text-sm font-medium text-navy hover:underline">
                 Copy link
               </button>
             </div>
@@ -144,6 +196,7 @@ export function Events() {
               onClick={() => {
                 setTab(id);
                 setSelectedId(null);
+                setShowWeaker(false);
               }}
               className={`whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors duration-150 ${
               tab === id ? 'bg-ink text-white' : 'text-muted hover:text-ink'}`
@@ -155,32 +208,41 @@ export function Events() {
           </div>
         </div>
 
-        {!feed.googleConnected &&
-        <div className="mt-6 flex flex-col gap-3 rounded-xl border border-line bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-canvas">
-                <GoogleIcon className="h-5 w-5" />
-              </span>
-              <p className="text-sm text-ink">
-                <span className="font-medium">Connect Google Calendar</span>
-                <span className="text-muted"> (preview) to see how conflict checks work, using a sample class schedule.</span>
-              </p>
-            </div>
-            <Link to="/connect?from=events"className="shrink-0 rounded-lg bg-ink px-3.5 py-2 text-center text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
+        {!feed.googleConnected && !connectDismissed &&
+        // One line on phones (so the first event is in view), a fuller card from sm up.
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-line bg-white py-2 pl-3 pr-1.5 sm:mt-6 sm:p-4">
+            <span className="flex shrink-0 items-center justify-center sm:h-9 sm:w-9 sm:rounded-lg sm:bg-canvas">
+              <GoogleIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            </span>
+            <p className="min-w-0 flex-1 truncate text-sm text-ink sm:whitespace-normal">
+              <span className="font-medium">Connect Google Calendar</span>
+              <span className="hidden text-muted sm:inline"> (preview) to see how conflict checks work, using a sample class schedule.</span>
+            </p>
+            <Link to="/connect?from=events" className="tap-target shrink-0 rounded-lg bg-ink px-3 py-1.5 text-center text-sm font-medium text-white transition-colors duration-150 hover:bg-navy sm:px-3.5 sm:py-2">
               Connect
             </Link>
+            <button
+            type="button"
+            onClick={() => {
+              setConnectDismissed(true);
+              saveConnectDismissed();
+            }}
+            aria-label="Dismiss the Google Calendar suggestion"
+            className="tap-target shrink-0 rounded-md p-1.5 text-muted transition-colors duration-150 hover:bg-canvas hover:text-ink">
+              <XIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
           </div>
         }
         {feed.showingAllSources && !feed.loading &&
-        <p className="mt-3 text-xs text-muted">
+        <p className="mt-2 text-xs text-muted sm:mt-3">
             Showing every public BYU calendar.{' '}
-            <Link to="/connect?from=events"className="font-medium text-navy hover:underline">
+            <Link to="/connect?from=events" className="tap-target inline-block font-medium text-navy hover:underline">
               Choose sources
             </Link>
           </p>
         }
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)_380px]">
+        <div className="mt-4 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[200px_minmax(0,1fr)_380px]">
           <aside aria-label="Filters" className={tab === 'plan' ? 'hidden lg:block lg:invisible' : ''}>
             <button
               type="button"
@@ -241,26 +303,30 @@ export function Events() {
                   </>
               }
               </div> :
-            noGoodMatches ?
-            <NoGoodMatches threshold={aiRanked ? AI_GOOD_MATCH : GOOD_MATCH} /> :
-
-            list.map((item, i) =>
-            <EventCard
-              key={item.event.id}
-              item={item}
-              variant={tab === 'forYou' && i === 0 ? 'hero' : 'row'}
-              selected={isDesktop && selected?.event.id === item.event.id}
-              added={added.has(item.event.id)}
-              googleConnected={feed.googleConnected}
-              onSelect={() => select(item.event.id)}
-              onAdd={() => markAdded(item.event.id)} />
-
-            )
+            <>
+                {noGoodMatches && <NoGoodMatches threshold={aiRanked ? AI_GOOD_MATCH : GOOD_MATCH} />}
+                {lead.map((item, i) => card(item, tab === 'forYou' && i === 0 ? 'hero' : 'row'))}
+                {weaker.length > 0 &&
+              <div className="flex justify-center pt-2">
+                    <button
+                  type="button"
+                  onClick={() => setShowWeaker((s) => !s)}
+                  aria-expanded={showWeaker}
+                  className="tap-target inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted transition-colors duration-150 hover:bg-white hover:text-ink">
+                      <ChevronDownIcon className={`h-4 w-4 transition-transform duration-150 ${showWeaker ? 'rotate-180' : ''}`} aria-hidden="true" />
+                      {showWeaker ?
+                  'Hide weaker fits' :
+                  `Show ${weaker.length} more ${weaker.length === 1 ? 'event' : 'events'} (weaker fit)`}
+                    </button>
+                  </div>
+              }
+                {showWeaker && weaker.map((item) => card(item, 'row'))}
+              </>
             }
           </section>
 
           <aside aria-label="Event details" className="hidden lg:block">
-            {detail && !feed.loading && !noGoodMatches &&
+            {detail && !feed.loading &&
             <div className="sticky top-20 h-[calc(100vh-6rem)] overflow-hidden rounded-xl border border-line bg-white">{detail}</div>
             }
           </aside>

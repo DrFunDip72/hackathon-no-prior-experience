@@ -111,11 +111,25 @@ function sameCompany(target: string, company: string): boolean {
   return short.length >= 4 && ` ${long} `.includes(` ${short} `);
 }
 
-/** True when a target role and an event field share a whole word sequence: "Product management" ~ "product". */
+/** "engineer" ~ "engineering", "design" ~ "designer": equal, or one starts the other and the shorter has 5+ letters. */
+function sameWord(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length >= 5 && long.startsWith(short);
+}
+
+/**
+ * True when a target role and an event field share a whole word sequence: "Product management" ~ "product".
+ * Phrases of the same length may differ in word endings: "Software engineer" ~ "software engineering".
+ * A shorter field must match exactly, so a generic "engineering" tag doesn't boost "Software engineer".
+ */
 function sameField(role: string, field: string): boolean {
   const a = normName(role);
   const b = normName(field);
   if (!a || !b) return false;
+  const aw = a.split(' ');
+  const bw = b.split(' ');
+  if (aw.length === bw.length) return aw.every((w, i) => sameWord(w, bw[i]));
   return ` ${a} `.includes(` ${b} `) || ` ${b} `.includes(` ${a} `);
 }
 
