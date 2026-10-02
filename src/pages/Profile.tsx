@@ -143,7 +143,7 @@ export function Profile() {
                         </p>
                       </div>
                       <span className={`shrink-0 whitespace-nowrap text-sm font-semibold ${eventMatch(item)?.className ?? 'text-muted'}`}>
-                        {eventMatch(item)?.label ?? '—'}
+                        {eventMatch(item) ? `${eventMatch(item)!.percent}%` : '—'}
                       </span>
                     </div>
                     {item.reason && <p className="mt-1 line-clamp-2 text-xs text-ink">{item.reason}</p>}

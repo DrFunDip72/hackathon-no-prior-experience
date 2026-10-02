@@ -50,7 +50,7 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
         <div className="mt-5 flex items-baseline gap-2">
           {match ?
           <>
-              <span className={`text-xl font-semibold ${match.className}`}>{match.label}</span>
+              <span className={`text-xl font-semibold ${match.className}`}>{match.percent}%</span>
             </> :
 
           <>
