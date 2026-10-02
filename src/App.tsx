@@ -33,7 +33,10 @@ export function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-      <Toaster position="bottom-center" toastOptions={{ style: { fontFamily: 'Inter, system-ui, sans-serif' } }} />
+      <Toaster
+        position="bottom-center"
+        mobileOffset={{ bottom: 'max(16px, env(safe-area-inset-bottom))' }}
+        toastOptions={{ style: { fontFamily: 'Inter, system-ui, sans-serif' } }} />
     </SessionProvider>);
 
 }
