@@ -8,10 +8,12 @@ interface FitPanelProps {
   /** "Product Manager Intern at Qualtrics" */
   role: string;
   mailto: string;
+  /** Shown right under Reach out, above the breakdown (the student's event engagement). */
+  children?: React.ReactNode;
 }
 
 /** On a student's profile, for the employer: how well they fit the role, why, and how to reach them. */
-export function FitPanel({ item, role, mailto }: FitPanelProps) {
+export function FitPanel({ item, role, mailto, children }: FitPanelProps) {
   const fit = matchLabel(item.percent, true);
   const linkedin = item.student.profile.linkedinUrl;
 
@@ -46,7 +48,10 @@ export function FitPanel({ item, role, mailto }: FitPanelProps) {
         }
       </div>
 
-      <ul className="mt-5 border-t border-line pt-4 space-y-3" aria-label="Why this fit">
+      {children && <div className="mt-5 border-t border-line pt-4">{children}</div>}
+
+      <h3 className="mt-5 border-t border-line pt-4 text-xs font-semibold text-navy">Why this fit</h3>
+      <ul className="mt-3 space-y-3" aria-label="Why this fit">
         {item.parts.map((part) =>
         <li key={part.key}>
             <div className="flex items-baseline justify-between gap-3 text-sm">

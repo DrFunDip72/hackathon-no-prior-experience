@@ -30,7 +30,7 @@ From the front-end team (Doorway) to the events API owner. Written 2026-10-02 af
 | P1-4 `GET /companies` | **Done**, with industry and brand color; logos/websites are null until verified ones exist. |
 | P1-5 percent, P1-6 audience, P1-7 profile fields | Not started. |
 | P2 | Sources: BYU calendar, career-services sheet (all month tabs) and CS department are live. Slack uses the owner `/paste` flow (custom apps blocked); single/bulk submission privacy and `dry_run` previews are tested locally, with live extraction **blocked on the Anthropic key**. See `api.md` and `slack-setup.md`. |
-| P2-6 Near-duplicate events (new) | Not started. See below. |
+| P2-6 Near-duplicate events | **Done.** Merged on upsert and once on boot; `sources: string[]` added. "Graduate School Fair" + "Grad School Fair" are now one event (`byu_calendar` + `cs_dept`). The two Disney sessions are an hour apart (more than the 30-minute window) and stay separate. See `api.md`. |
 
 **Front-end consumption (updated by the front-end team, 2026-10-02):**
 - P0-1: consumed. In-progress events stay in the feed (only ended ones drop) and show a "Happening now" tag on cards, the detail panel and the Profile card. The Homecoming Hackathon is the top match while it runs.

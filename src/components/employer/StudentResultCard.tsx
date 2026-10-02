@@ -4,12 +4,15 @@ import { ArrowRightIcon } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import { Chip } from '../ui/Chip';
 import { matchLabel } from '../../utils/matching';
+import { eventEngagement } from '../../utils/employerMatching';
 import type { ScoredStudent } from '../../types/employer';
 
 /** One ranked student, in the same card language as an event row on the Events page. */
-export function StudentResultCard({ item, top, roleId }: {item: ScoredStudent;top?: boolean;roleId: string;}) {
+export function StudentResultCard({ item, top, roleId, company }: {item: ScoredStudent;top?: boolean;roleId: string;company: string;}) {
   const navigate = useNavigate();
   const { student, percent, why, matchedSkills } = item;
+  const events = eventEngagement(student, company);
+  const yours = events.withYou.length;
   const p = student.profile;
   const href = `/employer/students/${student.id}?role=${roleId}`;
   const fit = matchLabel(percent, true);
@@ -36,6 +39,25 @@ export function StudentResultCard({ item, top, roleId }: {item: ScoredStudent;to
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {matchedSkills.slice(0, 5).map((s) => <Chip key={s} tone="navy">{s}</Chip>)}
           </div>
+        }
+        {events.total > 0 &&
+        <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+            {/* One dot per event: green for this company's, then everyone else's. The text says the same. */}
+            <span className="flex gap-0.5" aria-hidden="true">
+              {events.recent.map((_, i) =>
+            <span key={i} className={`h-1.5 w-1.5 rounded-full ${i < yours ? 'bg-success' : 'bg-navy-200'}`} />
+            )}
+            </span>
+            <span>
+              {events.total} {events.total === 1 ? 'event' : 'events'}
+              {yours > 0 && company &&
+            <>
+                  {' · '}
+                  <span className="font-medium text-success-700">{yours} with {company}</span>
+                </>
+            }
+            </span>
+          </p>
         }
       </div>
 

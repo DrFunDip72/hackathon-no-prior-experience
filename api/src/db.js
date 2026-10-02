@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { isNearDuplicate, START_WINDOW_MS } from './similar.js';
 
 const url = process.env.DATABASE_URL;
 const local = !url || /localhost|127\.0\.0\.1|\.railway\.internal/.test(url);
@@ -10,12 +11,17 @@ export const pool = new pg.Pool({
 
 const COLS = [
   'id', 'title', 'start_at', 'end_at', 'location', 'type', 'companies', 'programs', 'fields', 'source', 'source_url',
-  'description', 'verified', 'people', 'registration_url', 'rsvp_required', 'registration_deadline', 'dedupe_hash'
+  'description', 'verified', 'people', 'registration_url', 'rsvp_required', 'registration_deadline', 'sources', 'dedupe_hash'
 ];
 
 // How a re-ingest merges into an existing row. Lists are unioned (never lose curated data), optional facts only
 // fill gaps, and an event stays verified once any trusted source has listed it.
+const unionList = (c) => `${c} = array(select distinct u from unnest(events.${c} || excluded.${c}) u order by u)`;
 const MERGE = {
+  // Every source that has listed the event, so the front end can show where it came from.
+  sources: unionList,
+  // A verified listing's title wins; an unverified one (pasted text, an LLM read) never overwrites it.
+  title: (c) => `${c} = case when events.verified or not excluded.verified then events.${c} else excluded.${c} end`,
   companies: (c) => `${c} = array(select distinct u from unnest(events.${c} || excluded.${c}) u order by u)`,
   programs: (c) => `${c} = array(select distinct u from unnest(events.${c} || excluded.${c}) u order by u)`,
   fields: (c) => `${c} = array(select distinct u from unnest(events.${c} || excluded.${c}) u order by u)`,
@@ -38,7 +44,21 @@ const mergeClause = (c, replace) => {
   return `${c} = case when events.source = excluded.source then excluded.${c} else array(select distinct u from unnest(events.${c} || excluded.${c}) u order by u) end`;
 };
 
-export async function upsertEvent(row, client = pool, { replace = [] } = {}) {
+// If a near-duplicate already exists (same place, start within 30 minutes, very similar title), fold this row into it:
+// reuse its id and hash so the upsert below merges instead of inserting a second copy.
+async function adoptNearDuplicate(row, client) {
+  const { rows } = await client.query(
+    `select id, title, start_at, location, dedupe_hash from events
+     where dedupe_hash <> $1 and start_at between $2::timestamptz - $3 * interval '1 millisecond' and $2::timestamptz + $3 * interval '1 millisecond'`,
+    [row.dedupe_hash, row.start_at, START_WINDOW_MS]
+  );
+  const twin = rows.find((c) => isNearDuplicate(c, row));
+  return twin ? { ...row, id: twin.id, dedupe_hash: twin.dedupe_hash } : row;
+}
+
+export async function upsertEvent(input, client = pool, { replace = [] } = {}) {
+  const row = { ...(await adoptNearDuplicate(input, client)) };
+  row.sources = [...new Set([...(row.sources ?? []), row.source])];
   const placeholders = COLS.map((c, i) => (c === 'people' ? `$${i + 1}::jsonb` : `$${i + 1}`)).join(', ');
   const updates = COLS.filter((c) => !['id', 'dedupe_hash'].includes(c))
     .map((c) => mergeClause(c, replace)).join(', ');
@@ -108,4 +128,35 @@ export async function upsertCompany(c) {
        brand_color = coalesce(excluded.brand_color, companies.brand_color)`,
     [c.name, c.aliases ?? [], c.kind ?? 'employer', c.industry ?? null, c.website ?? null, c.careers_url ?? null, c.logo_url ?? null, c.brand_color ?? null]
   );
+}
+
+// Cleans up duplicates stored before near-duplicate merging existed (runs on boot; cheap and idempotent).
+// Keeps one row per cluster (a verified one first, then the oldest), unions the rest into it, deletes the extras.
+export async function mergeNearDuplicates() {
+  const { rows } = await pool.query('select * from events order by verified desc, created_at, id');
+  const gone = new Set();
+  let merged = 0;
+  for (const keeper of rows) {
+    if (gone.has(keeper.id)) continue;
+    for (const dup of rows) {
+      if (dup.id === keeper.id || gone.has(dup.id) || !isNearDuplicate(keeper, dup)) continue;
+      await pool.query(
+        `update events set
+           companies = array(select distinct u from unnest(companies || $2::text[]) u order by u),
+           programs = array(select distinct u from unnest(programs || $3::text[]) u order by u),
+           fields = array(select distinct u from unnest(fields || $4::text[]) u order by u),
+           sources = array(select distinct u from unnest(sources || $5::text[]) u order by u),
+           registration_url = coalesce(registration_url, $6),
+           source_url = coalesce(source_url, $7),
+           updated_at = now()
+         where id = $1`,
+        [keeper.id, dup.companies, dup.programs, dup.fields, [...new Set([...dup.sources, dup.source])], dup.registration_url, dup.source_url]
+      );
+      await pool.query('delete from events where id = $1', [dup.id]);
+      gone.add(dup.id);
+      merged++;
+    }
+  }
+  if (merged) console.log(`merged ${merged} near-duplicate event(s)`);
+  return merged;
 }

@@ -197,10 +197,13 @@ function RoleMatches({ role }: {role: EmployerRole;}) {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-3">
-          {results.map((item, i) => <StudentResultCard key={item.student.id} item={item} top={i === 0} roleId={role.id} />)}
+          {results.map((item, i) =>
+          <StudentResultCard key={item.student.id} item={item} top={i === 0} roleId={role.id} company={query.companyName.trim()} />
+          )}
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+        {/* Pinned below the header but never taller than the screen, so a long role description still scrolls into view. */}
+        <aside className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:self-start lg:overflow-y-auto lg:rounded-xl">
           <section aria-labelledby="role-heading" className="rounded-xl border border-line bg-white p-5">
             <h2 id="role-heading" className="text-sm font-semibold text-ink">
               The role
@@ -232,7 +235,7 @@ function RoleMatches({ role }: {role: EmployerRole;}) {
               }
             </dl>
             <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
-              Fit weighs skills most, then the role each student wants, their major, interest in your company, experience, and timing.
+              Fit weighs skills most, then the role each student wants, their major, interest in your company (including coming to your events), experience, and timing.
               Only students who chose to be found are shown.
             </p>
           </section>

@@ -1,6 +1,6 @@
 import { employers } from '../data/employers';
 import { containsWord, termMatch, unique } from './text';
-import type { EmployerQuery, FitPart, PoolStudent, ScoredStudent } from '../types/employer';
+import type { AttendedEvent, EmployerQuery, FitPart, PoolStudent, ScoredStudent } from '../types/employer';
 import type { Profile } from '../types/profile';
 
 /**
@@ -152,6 +152,37 @@ export function suggestedSkillsFor(jobTitle: string): string[] {
 
 const has = (list: string[], term: string) => list.some((s) => termMatch(s, term));
 
+/** "Lucid Software, Inc." -> "lucid software": lowercase, no punctuation or legal suffix. */
+const companyKey = (name: string) =>
+name.toLowerCase().replace(/[.,]/g, ' ').replace(/\b(inc|llc|ltd|corp|corporation|co)\b/g, '').replace(/\s+/g, ' ').trim();
+
+/** Same company, tolerant of case and suffixes: "Lucid" ~ "Lucid Software, Inc.", "Wasatch Labs" ~ "wasatch labs". */
+export function sameCompany(a: string | null | undefined, b: string | null | undefined): boolean {
+  return Boolean(a && b) && termMatch(companyKey(a!), companyKey(b!));
+}
+
+export interface EventEngagement {
+  total: number;
+  /** Events hosted by the role's company, newest first. */
+  withYou: AttendedEvent[];
+  /** Other companies' events, by company, most attended first. */
+  others: { company: string; count: number }[];
+  /** General career events with no host company (career fairs, panels). */
+  general: number;
+  /** Every event, newest first. */
+  recent: AttendedEvent[];
+}
+
+/** How many Doorway events a student went to, split into the role's company, other companies and general events. */
+export function eventEngagement(student: PoolStudent, companyName: string): EventEngagement {
+  const recent = [...student.attendedEvents].sort((a, b) => b.date.localeCompare(a.date));
+  const withYou = recent.filter((e) => sameCompany(e.company, companyName));
+  const counts = new Map<string, number>();
+  for (const e of recent) if (e.company && !withYou.includes(e)) counts.set(e.company, (counts.get(e.company) ?? 0) + 1);
+  const others = [...counts].map(([company, count]) => ({ company, count })).sort((a, b) => b.count - a.count);
+  return { total: recent.length, withYou, others, general: recent.filter((e) => !e.company).length, recent };
+}
+
 /** Never a multiple of 5: when rounding lands on one, round the other way (stays within a point of the real value). */
 function unround(raw: number): number {
   const r = Math.round(raw);
@@ -233,7 +264,12 @@ export function scoreStudent(student: PoolStudent, query: EmployerQuery): Scored
 
   // 5. Interest in you: the company is on their list, they came to your event, or they want your industry.
   const targetsYou = Boolean(company) && has(p.interests.companies, company);
-  const attended = company ? student.attendedEvents.find((e) => e.company && termMatch(e.company, company)) : undefined;
+  const yourEvents = company ? student.attendedEvents.filter((e) => sameCompany(e.company, company)) : [];
+  const attended = yourEvents.length;
+  // Each of your events adds a little less than the last: 1 -> 2.3 points, 2 -> 3.7, 4 -> 5.0, 7 -> 5.4.
+  const attendPoints = 5.6 * (1 - 0.58 ** attended);
+  const attendedDetail =
+  attended === 1 ? `came to ${yourEvents[0].title}` : attended > 1 ? `came to ${attended} of your events` : '';
   const jobIndustries = unique([
   ...employers.filter((e) => company && termMatch(e.name, company)).map((e) => e.industry),
   ...family?.industries ?? []]
@@ -241,7 +277,7 @@ export function scoreStudent(student: PoolStudent, query: EmployerQuery): Scored
   const industryHit = p.interests.industries.find((i) => has(jobIndustries, i));
   const interestPoints = Math.min(
     WEIGHTS.interest,
-    (targetsYou ? 7 : 0) + (attended ? 3.5 : 0) + (industryHit ? targetsYou ? 1.5 : 4.3 : 0)
+    (targetsYou ? 7 : 0) + attendPoints + (industryHit ? targetsYou ? 1.5 : 4.3 : 0)
   );
   parts.push({
     key: 'interest',
@@ -250,7 +286,7 @@ export function scoreStudent(student: PoolStudent, query: EmployerQuery): Scored
     max: WEIGHTS.interest,
     detail: [
     targetsYou && `${company} is on their target list`,
-    attended && `came to ${attended.title}`,
+    attendedDetail,
     !targetsYou && industryHit && `interested in ${industryHit}`].
     filter(Boolean).join('; ') || 'No sign of interest in this company or industry yet'
   });
@@ -302,7 +338,7 @@ export function scoreStudent(student: PoolStudent, query: EmployerQuery): Scored
   matchedSkills.length && `Has ${matchedSkills.slice(0, 3).join(', ')}${matchedSkills.length > 3 ? ` +${matchedSkills.length - 3}` : ''}`,
   wantedRole && `wants ${wantedRole.toLowerCase()} roles`,
   targetsYou && `${company} is a target`,
-  !targetsYou && attended && `came to ${attended.title}`].
+  !targetsYou && attendedDetail].
   filter(Boolean).join(' · ') || `${major} student, little overlap with this role`;
 
   return { student, percent, parts, matchedSkills, missingSkills, why: why.charAt(0).toUpperCase() + why.slice(1) };

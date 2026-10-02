@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 /**
  * The Doorway mark: a door frame with its door swung open. Original glyph, icon-only and decorative.
  * Size it with className (defaults to 28px).
+ * The tab icon (public/favicon.svg) is a copy of this artwork, so update both together.
  */
 export function LogoMark({ className = 'h-7 w-7' }: {className?: string;}) {
   return (
