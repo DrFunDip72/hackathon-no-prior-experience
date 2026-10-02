@@ -115,6 +115,17 @@ export function parseSheet(csv) {
   return { events: [...events.values()], skipped };
 }
 
+// A published sheet's main page lists every tab (with its gid), so new month tabs are picked up without config.
+// base: https://docs.google.com/spreadsheets/d/e/<id>   Returns CSV urls, or [] if no tabs could be found.
+export async function discoverTabUrls(base) {
+  const res = await fetch(`${base}/pubhtml`);
+  if (!res.ok) throw new Error(`sheet discovery ${res.status}`);
+  const html = await res.text();
+  const gids = [...new Set([...html.matchAll(/(?:sheet-button-|[?&;]gid=|"gid":"?)(\d{3,})/g)].map((m) => m[1]))];
+  console.log(`sheet discovery: found ${gids.length} tab(s): ${gids.join(', ') || 'none'}`);
+  return gids.map((gid) => `${base}/pub?gid=${gid}&single=true&output=csv`);
+}
+
 // urls: published-sheet CSV links (one per month tab), e.g. https://docs.google.com/spreadsheets/d/e/<id>/pub?gid=<gid>&single=true&output=csv
 export async function ingestSheets(urls) {
   for (const url of urls) {

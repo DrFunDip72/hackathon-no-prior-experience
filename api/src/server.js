@@ -3,7 +3,8 @@ import { pool, queryEvents, upsertEvent } from './db.js';
 import { recommend, DEFAULT_WINDOW_DAYS } from './scoring.js';
 import { extractEvent, buildSubmissionRow } from './extract.js';
 import { ingestByu } from './ingest-byu.js';
-import { ingestSheets } from './ingest-sheet.js';
+import { ingestSheets, discoverTabUrls } from './ingest-sheet.js';
+import { ingestCs } from './ingest-cs.js';
 
 const DAY_MS = 86_400_000;
 const PORT = process.env.PORT ?? 3000;
@@ -93,10 +94,22 @@ if (process.env.INGEST_BYU) {
   setInterval(run, DAY_MS);
 }
 
-// The career-services sheet is hand-edited, so refresh it more often. INGEST_SHEET_URLS is a comma-separated list of CSV links.
-if (process.env.INGEST_SHEET_URLS) {
-  const urls = process.env.INGEST_SHEET_URLS.split(',').map((u) => u.trim()).filter(Boolean);
-  const run = () => ingestSheets(urls).catch((err) => console.error('sheet ingest failed:', err.message));
+// The career-services sheet is hand-edited, so refresh it often. INGEST_SHEET_BASE (the published sheet's
+// https://docs.google.com/spreadsheets/d/e/<id>) auto-discovers every tab; INGEST_SHEET_URLS lists CSV links explicitly.
+if (process.env.INGEST_SHEET_BASE || process.env.INGEST_SHEET_URLS) {
+  const explicit = (process.env.INGEST_SHEET_URLS ?? '').split(',').map((u) => u.trim()).filter(Boolean);
+  const run = async () => {
+    const discovered = process.env.INGEST_SHEET_BASE ? await discoverTabUrls(process.env.INGEST_SHEET_BASE).catch((err) => (console.error(err.message), [])) : [];
+    await ingestSheets([...new Set([...explicit, ...discovered])]);
+  };
+  const safeRun = () => run().catch((err) => console.error('sheet ingest failed:', err.message));
+  safeRun();
+  setInterval(safeRun, 6 * 3_600_000);
+}
+
+// CS department calendar (event pages plus per-event ICS), every 6 hours.
+if (process.env.INGEST_CS) {
+  const run = () => ingestCs().catch((err) => console.error('cs ingest failed:', err.message));
   run();
   setInterval(run, 6 * 3_600_000);
 }

@@ -8,7 +8,7 @@ export const KNOWN_COMPANIES = [
 
 const TYPE_RULES = [
   ['hackathon', /hackathon|hack-a-thon/i],
-  ['career_fair', /career (fair|expo)|job fair|internship fair/i],
+  ['career_fair', /\b(career|job|internship|grad(uate)? school) (fair|expo)\b/i],
   ['case_competition', /case (competition|challenge)/i],
   ['info_session', /info(rmation)? session|recruiting (event|session)|employer (panel|session)/i],
   ['networking', /networking|recruiting dinner|meet (the|and greet)|alumni panel/i],

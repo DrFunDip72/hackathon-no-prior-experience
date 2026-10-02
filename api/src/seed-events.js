@@ -1,113 +1,101 @@
-// Demo seed data. Only the CS Hackathon is confirmed; the rest are realistic placeholders
-// (titles, dates, companies) to be checked against real BYU sources before the demo.
-const o = '-06:00';
-const at = (date, time) => `2026-${date}T${time}:00${o}`;
-
-// Seed rows that were replaced; seed.js deletes them so renames don't leave duplicates behind.
-export const retiredEvents = [{ title: 'CS Hackathon', start: at('10-02', '09:00'), location: 'TMCB' }];
-
+// Demo seed data. Real events now come from the ingests (BYU calendar, career-services sheet, CS department),
+// so only curated facts the sources lack live here: the hackathon's sponsors. Upserts union companies/fields,
+// so these merge into the ingested rows instead of replacing them.
 export const seedEvents = [
   {
     // Same event as the career-services sheet's "Homecoming Hackathon" (same title/date/location, so they dedupe).
-    title: 'Homecoming Hackathon', start: at('10-02', '08:00'), end: at('10-02', '20:00'), location: 'ESC Annex',
-    type: 'hackathon', companies: ['Redo', 'Neighbor', 'Waystar'], fields: ['software engineering', 'product'],
-    source: 'cs_dept', source_url: 'https://cs.byu.edu',
-    description: 'All-day CS Department hackathon. Sponsors Redo, Neighbor, and Waystar have reps on site.'
+    title: "Homecoming Hackathon", start: "2026-10-02T08:00:00-06:00", end: "2026-10-02T20:00:00-06:00", location: "ESC Annex",
+    type: 'hackathon', companies: ["Redo","Neighbor","Waystar"], fields: ["software engineering","product"],
+    source: 'cs_dept', source_url: 'https://cs.byu.edu/homecoming-hackathon-2026-10-02',
+    description: "All-day CS Department hackathon. Sponsors Redo, Neighbor, and Waystar have reps on site."
+  }
+];
+
+// Retired seed rows (earlier renames and fake placeholder events); seed.js deletes them so they don't linger.
+export const retiredEvents = [
+  {
+    "title": "CS Hackathon",
+    "start": "2026-10-02T09:00:00-06:00",
+    "location": "TMCB"
   },
   {
-    title: 'Fall Career & Internship Fair', start: at('10-06', '10:00'), end: at('10-06', '15:00'), location: 'Wilkinson Student Center Ballroom',
-    type: 'career_fair', companies: ['Adobe', 'Qualtrics', 'Domo', 'Microsoft', 'Lucid', 'Podium', 'Entrata', 'Instructure'], fields: ['software engineering', 'product', 'data'],
-    source: 'careerlaunch', source_url: 'https://careerlaunch.byu.edu',
-    description: 'Campus-wide career fair with employers hiring for internships and full-time roles.'
+    "title": "Fall Career & Internship Fair",
+    "start": "2026-10-06T10:00:00-06:00",
+    "location": "Wilkinson Student Center Ballroom"
   },
   {
-    title: 'Qualtrics Product Night', start: at('10-05', '18:00'), end: at('10-05', '19:30'), location: 'Tanner Building W112',
-    type: 'info_session', companies: ['Qualtrics'], fields: ['product', 'data'],
-    source: 'careerlaunch', source_url: 'https://careerlaunch.byu.edu',
-    description: 'Qualtrics PMs and designers demo new features and talk about hiring associate product managers.'
+    "title": "Qualtrics Product Night",
+    "start": "2026-10-05T18:00:00-06:00",
+    "location": "Tanner Building W112"
   },
   {
-    title: 'Microsoft Software Engineering Info Session', start: at('10-08', '16:00'), end: at('10-08', '17:15'), location: 'Talmage Building 1170',
-    type: 'info_session', companies: ['Microsoft'], fields: ['software engineering'],
-    source: 'careerlaunch', source_url: 'https://careerlaunch.byu.edu',
-    description: 'Azure and Microsoft 365 engineers cover internship programs and a sample coding interview.'
+    "title": "Microsoft Software Engineering Info Session",
+    "start": "2026-10-08T16:00:00-06:00",
+    "location": "Talmage Building 1170"
   },
   {
-    title: 'Neighbor Engineering Office Hours', start: at('10-07', '12:00'), end: at('10-07', '13:00'), location: 'TMCB Foyer',
-    type: 'tabling', companies: ['Neighbor'], fields: ['software engineering'],
-    source: 'cs_dept', source_url: 'https://cs.byu.edu',
-    description: 'Neighbor engineers tabling in the TMCB foyer to talk about internships.'
+    "title": "Neighbor Engineering Office Hours",
+    "start": "2026-10-07T12:00:00-06:00",
+    "location": "TMCB Foyer"
   },
   {
-    title: 'Domo Data Engineering Tech Talk', start: at('10-09', '11:00'), end: at('10-09', '11:50'), location: 'Tanner Building 140',
-    type: 'lecture', companies: ['Domo'], fields: ['data', 'software engineering'],
-    source: 'byu_calendar', source_url: 'https://calendar.byu.edu',
-    description: 'Domo leaders on building data pipelines behind real-time dashboards.'
+    "title": "Domo Data Engineering Tech Talk",
+    "start": "2026-10-09T11:00:00-06:00",
+    "location": "Tanner Building 140"
   },
   {
-    title: 'Waystar Recruiting Dinner', start: at('10-13', '18:00'), end: at('10-13', '20:00'), location: 'Skyroom, Wilkinson Student Center',
-    type: 'networking', companies: ['Waystar'], fields: ['software engineering', 'data'],
-    source: 'cs_dept', source_url: 'https://cs.byu.edu',
-    description: 'Invite-only dinner with Waystar engineers and recruiters for CS and IS seniors.'
+    "title": "Waystar Recruiting Dinner",
+    "start": "2026-10-13T18:00:00-06:00",
+    "location": "Skyroom, Wilkinson Student Center"
   },
   {
-    title: 'Redo Founder Fireside Chat', start: at('10-14', '17:00'), end: at('10-14', '18:00'), location: 'Rollins Center, Tanner Building 260',
-    type: 'lecture', companies: ['Redo'], fields: ['product', 'software engineering'],
-    source: 'rollins', source_url: 'https://marriott.byu.edu/cet',
-    description: 'Redo founders talk about building an ecommerce returns product and hiring early engineers.'
+    "title": "Redo Founder Fireside Chat",
+    "start": "2026-10-14T17:00:00-06:00",
+    "location": "Rollins Center, Tanner Building 260"
   },
   {
-    title: 'Lucid Product Management Info Session', start: at('10-12', '17:00'), end: at('10-12', '18:00'), location: 'Tanner Building 151',
-    type: 'info_session', companies: ['Lucid'], fields: ['product'],
-    source: 'careerlaunch', source_url: 'https://careerlaunch.byu.edu',
-    description: 'Lucid product managers discuss the associate PM internship.'
+    "title": "Lucid Product Management Info Session",
+    "start": "2026-10-12T17:00:00-06:00",
+    "location": "Tanner Building 151"
   },
   {
-    title: 'Startup Career Fair', start: at('10-15', '11:00'), end: at('10-15', '15:00'), location: 'Wilkinson Student Center',
-    type: 'career_fair', companies: ['Redo', 'Neighbor', 'Podium', 'Entrata'], fields: ['software engineering', 'product', 'sales'],
-    source: 'rollins', source_url: 'https://marriott.byu.edu/cet',
-    description: 'Utah startups recruiting interns and new grads, hosted by the Rollins Center.'
+    "title": "Startup Career Fair",
+    "start": "2026-10-15T11:00:00-06:00",
+    "location": "Wilkinson Student Center"
   },
   {
-    title: 'Podium Engineering Info Session', start: at('10-16', '17:30'), end: at('10-16', '18:30'), location: 'TMCB 1170',
-    type: 'info_session', companies: ['Podium'], fields: ['software engineering'],
-    source: 'clubs', source_url: 'https://clubs.byu.edu',
-    description: 'Podium engineers on their stack, internships, and the interview process.'
+    "title": "Podium Engineering Info Session",
+    "start": "2026-10-16T17:30:00-06:00",
+    "location": "TMCB 1170"
   },
   {
-    title: 'Entrata Tabling', start: at('10-19', '10:00'), end: at('10-19', '14:00'), location: 'TMCB Foyer',
-    type: 'tabling', companies: ['Entrata'], fields: ['software engineering', 'data'],
-    source: 'cs_dept', source_url: 'https://cs.byu.edu',
-    description: 'Entrata recruiters tabling for software and data internships.'
+    "title": "Entrata Tabling",
+    "start": "2026-10-19T10:00:00-06:00",
+    "location": "TMCB Foyer"
   },
   {
-    title: 'ACM Club: Interview Prep Night', start: at('10-08', '19:00'), end: at('10-08', '20:30'), location: 'TMCB 1102',
-    type: 'club_event', companies: [], fields: ['software engineering'],
-    source: 'clubs', source_url: 'https://clubs.byu.edu',
-    description: 'Mock technical interviews run by upperclassmen.'
+    "title": "ACM Club: Interview Prep Night",
+    "start": "2026-10-08T19:00:00-06:00",
+    "location": "TMCB 1102"
   },
   {
-    title: 'Product Management Club: Breaking into PM', start: at('10-06', '19:00'), end: at('10-06', '20:00'), location: 'Tanner Building 151',
-    type: 'club_event', companies: [], fields: ['product'],
-    source: 'clubs', source_url: 'https://clubs.byu.edu',
-    description: 'Panel on landing a first PM internship. Open to all majors.'
+    "title": "Product Management Club: Breaking into PM",
+    "start": "2026-10-06T19:00:00-06:00",
+    "location": "Tanner Building 151"
   },
   {
-    title: 'Instructure Alumni Panel', start: at('10-20', '16:00'), end: at('10-20', '17:00'), location: 'Tanner Building 270',
-    type: 'networking', companies: ['Instructure'], fields: ['software engineering', 'product'],
-    source: 'careerlaunch', source_url: 'https://careerlaunch.byu.edu',
-    description: 'BYU alumni at Instructure share how they got hired and what the team looks for.'
+    "title": "Instructure Alumni Panel",
+    "start": "2026-10-20T16:00:00-06:00",
+    "location": "Tanner Building 270"
   },
   {
-    title: 'Data Science Case Competition', start: at('10-17', '09:00'), end: at('10-17', '17:00'), location: 'Tanner Building W112',
-    type: 'case_competition', companies: ['Domo'], fields: ['data'],
-    source: 'careerlaunch', source_url: 'https://careerlaunch.byu.edu',
-    description: 'Teams analyze a real dataset and present recommendations. Domo judges.'
+    "title": "Data Science Case Competition",
+    "start": "2026-10-17T09:00:00-06:00",
+    "location": "Tanner Building W112"
   },
   {
-    title: 'ECE Industry Career Fair', start: at('10-21', '10:00'), end: at('10-21', '14:00'), location: 'Engineering Building Atrium',
-    type: 'career_fair', companies: ['Microsoft', 'Adobe'], fields: ['hardware', 'software engineering'],
-    source: 'byu_calendar', source_url: 'https://calendar.byu.edu',
-    description: 'Electrical and computer engineering career fair.'
+    "title": "ECE Industry Career Fair",
+    "start": "2026-10-21T10:00:00-06:00",
+    "location": "Engineering Building Atrium"
   }
 ];

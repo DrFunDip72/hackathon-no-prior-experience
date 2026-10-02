@@ -37,7 +37,7 @@ export async function ingestByu(days = 30) {
           start: e.StartDateTime,
           end: e.EndDateTime,
           location: e.LocationName || e.field_event_location,
-          ...classify(e.Title, description),
+          ...classify(e.Title, `${description} ${e.TagsNames ?? ''}`),
           source: 'byu_calendar',
           source_url: e.FullUrl,
           description
