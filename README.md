@@ -7,6 +7,8 @@ Hackathon project for the **Improving the job hunt** challenge. Doorway pulls sc
 - [`docs/brief.md`](docs/brief.md): the problem, the decisions, and why
 - [`docs/backlog.md`](docs/backlog.md): what is built and what is next
 - [`docs/api.md`](docs/api.md): the events API (endpoints, data shapes, sources, deploy). **Read before touching anything that calls it; keep it updated.**
+- [`docs/backend-handoff.md`](docs/backend-handoff.md): how the events backend is built, hosted (Railway), deployed, and what to do next. Start here to take over the backend.
+- [`docs/api-requests.md`](docs/api-requests.md): the front-end team's requests for the API, with a status table
 - [`docs/magic-patterns-prompt.md`](docs/magic-patterns-prompt.md): the full product spec, also used to generate a Magic Patterns version
 - [`sample-profile/`](sample-profile/): Jordan Ellis, a fictional BYU CS senior for testing and demos (resume, PDF, LinkedIn mock, JSON)
 
