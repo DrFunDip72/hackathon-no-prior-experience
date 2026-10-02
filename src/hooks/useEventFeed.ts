@@ -5,9 +5,9 @@ import { buildSchedule } from '../data/schedule';
 import { api } from '../utils/api';
 import { API_URL, fetchEventsByIds, fetchRecommendedEvents, toApiProfile } from '../utils/backend';
 import { daysFromToday } from '../utils/dates';
-import { AI_GOOD_MATCH, AI_STRONG_MATCH, getProfileTerms, isHiddenFromFeed, scoreEvent } from '../utils/matching';
+import { AI_GOOD_MATCH, AI_STRONG_MATCH, getProfileTerms, isGoodMatch, isHiddenFromFeed, scoreEvent } from '../utils/matching';
 import { cachedScores, fetchAiScores, rankKey, type AiScores } from '../utils/aiRank';
-import { unique } from '../utils/text';
+import { containsWord, termMatch, unique } from '../utils/text';
 import type { CalendarSourceId } from '../types/calendar';
 import type { CampusEvent, EventType, ScoredEvent } from '../types/event';
 import type { Profile } from '../types/profile';
@@ -63,20 +63,47 @@ function neutralLine(item: ScoredEvent): string {
   return location && location !== 'Location TBA' ? `${type} at ${location}.` : `Campus ${type.toLowerCase()}.`;
 }
 
+/** "a", "a and b", "a, b and c". */
+function listOf(items: string[]): string {
+  return items.length < 2 ? items[0] ?? '' : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+const withArticle = (noun: string) => `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`;
+
 /**
  * Keeps the API's reason when it names real matches; otherwise, for events the AI rates Good or better,
- * says what they fit (until Phase 2's per-event AI reasons replace this). A field-only API reason
- * ("Covers product…") on an event the AI rates below Good is often a mis-tag, so it gets a neutral line.
+ * says in plain words what connects the event to this student, using only facts we have (until Phase 2's
+ * per-event AI reasons replace this): a target role the event covers, a listed skill it mentions,
+ * an industry they picked, or else who's there. A field-only API reason ("Covers product…") on an event
+ * the AI rates below Good is often a mis-tag, so it gets a neutral line.
  */
 function aiWhyLine(item: ScoredEvent, percent: number, profile: Profile): string | undefined {
   if (!item.targetCompanies.length && percent < AI_GOOD_MATCH) return neutralLine(item);
   const hasApiReason = item.reason && item.reasons.length > 0 && !GENERIC_REASON.test(item.reason);
   if (hasApiReason || percent < AI_GOOD_MATCH) return item.reason;
-  const role = profile.lookingFor.roleTypes[0]?.trim();
-  const industry = profile.interests.industries[0]?.trim();
-  const topic = role ? `${role.toLowerCase()} roles` : industry ? industry.toLowerCase() : '';
-  if (!topic) return percent >= AI_STRONG_MATCH ? 'Closely matches your profile.' : 'Related to your profile.';
-  return percent >= AI_STRONG_MATCH ? `Closely matches your interest in ${topic}.` : `Related to your interest in ${topic}.`;
+
+  const { event } = item;
+  const topics = event.tags.slice(0, 3);
+  const close = percent >= AI_STRONG_MATCH;
+
+  const role = profile.lookingFor.roleTypes.map((r) => r.trim()).find((r) => r && event.tags.some((t) => termMatch(r, t)));
+  if (role) {
+    return `Covers ${listOf(topics)}, ${close ? 'a close fit' : 'a fit'} for the ${role.toLowerCase()} roles you’re after.`;
+  }
+
+  const text = `${event.title} ${event.description}`;
+  const skills = unique([...profile.topSkills, ...profile.skillGroups.flatMap((g) => g.skills)]).
+  // Short skills ("Go", "SQL") must match case too, so "go to the lobby" doesn't count.
+  filter((s) => s.trim().length > 1 && containsWord(text, s) && (s.length > 4 || text.includes(s))).
+  slice(0, 2);
+  if (skills.length) return `Puts ${listOf(skills)} to work, ${skills.length > 1 ? 'both skills' : 'a skill'} you listed.`;
+
+  const industry = event.tags.find((t) => profile.interests.industries.some((i) => termMatch(i, t)));
+  if (industry) return `Focused on ${industry}, one of the industries you picked.`;
+
+  const names = item.employers.slice(0, 2).map((e) => e.name);
+  const what = withArticle(event.type.toLowerCase());
+  return `Close to what your profile describes: ${what}${names.length ? ` with ${listOf(names)}` : ''}.`;
 }
 
 export function useEventFeed() {
@@ -190,6 +217,14 @@ export function useEventFeed() {
     [scored, filters]
   );
 
+  // With AI percents, "For you" leads with Good-or-better fits (isGoodMatch: AI percent >= 40) and keeps the
+  // rest behind a "weaker fit" expander, so a 22% event never pads the list but nothing vanishes either.
+  // Without AI (unavailable or still loading), every item stays in `top`, as before.
+  const { top, weaker } = useMemo(() => {
+    if (!items.some((i) => i.aiPercent !== undefined)) return { top: items, weaker: [] as ScoredEvent[] };
+    return { top: items.filter(isGoodMatch), weaker: items.filter((i) => !isGoodMatch(i)) };
+  }, [items]);
+
   const planned = useMemo(
     () => {
       const ranked = allScored.filter((s) => state.addedEventIds.includes(s.event.id));
@@ -215,7 +250,11 @@ export function useEventFeed() {
       setSavedError(false);
       setAttempt((a) => a + 1);
     },
+    /** Every event passing the filters, best first. */
     items,
+    /** `items` split for "For you": Good-or-better AI fits first, the rest behind an expander (all in `top` without AI). */
+    top,
+    weaker,
     total: scored.length,
     /** Events left out of the feed as off-topic (see isHiddenFromFeed). */
     hiddenCount: fromSources.length - scored.length,
