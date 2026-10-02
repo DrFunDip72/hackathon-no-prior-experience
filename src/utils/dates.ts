@@ -32,7 +32,8 @@ export function formatDay(date: Date): string {
 }
 
 export function formatTimeRange(start: Date, end: Date): string {
-  return `${format(start, 'h:mm')}–${format(end, 'h:mm a')}`;
+  const sameHalf = format(start, 'a') === format(end, 'a');
+  return `${format(start, sameHalf ? 'h:mm' : 'h:mm a')}–${format(end, 'h:mm a')}`;
 }
 
 export function formatClock(time: string): string {

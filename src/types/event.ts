@@ -24,6 +24,8 @@ export interface CampusEvent {
   attendeeIds: string[];
   /** Set when the event came from the real API: exact start time and its ranking. */
   startAt?: string;
+  /** Link back to the original listing (API events). */
+  sourceUrl?: string;
   apiScore?: number;
   apiReasons?: string[];
   apiReason?: string;

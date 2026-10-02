@@ -16,4 +16,16 @@ export const employers: Employer[] = [
 { id: 'northrop', name: 'Northrop Grumman', industry: 'Aerospace & Defense', initials: 'NG', color: '#1F3A5F' },
 { id: 'nuskin', name: 'Nu Skin', industry: 'Consumer goods', initials: 'NS', color: '#4A4A4A' },
 { id: 'entrata', name: 'Entrata', industry: 'Software', initials: 'E', color: '#0E6A73' },
-{ id: 'ancestry', name: 'Ancestry', industry: 'Data & Analytics', initials: 'A', color: '#4E7A24' }];
+{ id: 'ancestry', name: 'Ancestry', industry: 'Data & Analytics', initials: 'A', color: '#4E7A24' },
+// Hackathon sponsors and companies that show up in the live events API (names must match the API's canonical names).
+{ id: 'redo', name: 'Redo', industry: 'Software', initials: 'R', color: '#E5484D' },
+{ id: 'neighbor', name: 'Neighbor', industry: 'Software', initials: 'N', color: '#1C6BF0' },
+{ id: 'waystar', name: 'Waystar', industry: 'Healthcare tech', initials: 'W', color: '#5B2D90' },
+{ id: 'ensign-peak-advisors', name: 'Ensign Peak Advisors', industry: 'Finance', initials: 'EP', color: '#1E3A5F' },
+{ id: 'hxp', name: 'HXP', industry: 'Employer', initials: 'HX', color: '#0F766E' },
+{ id: 'scalar', name: 'Scalar', industry: 'Employer', initials: 'S', color: '#6D28D9' },
+{ id: 'layton-construction', name: 'Layton Construction', industry: 'Construction', initials: 'LC', color: '#B45309' },
+{ id: 'larry-h-miller-senior-health', name: 'Larry H. Miller Senior Health', industry: 'Healthcare', initials: 'LM', color: '#0B4F8A' },
+{ id: 'swire-coca-cola', name: 'Swire Coca-Cola', industry: 'Consumer goods', initials: 'SC', color: '#D7141A' },
+{ id: 'sodexo', name: 'Sodexo', industry: 'Hospitality', initials: 'So', color: '#2A295C' },
+{ id: 'disney-college-program', name: 'Disney College Program', industry: 'Entertainment', initials: 'DC', color: '#113CCF' }];

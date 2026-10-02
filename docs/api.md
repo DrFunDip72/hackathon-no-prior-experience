@@ -147,14 +147,17 @@ Wiring already exists; extend it rather than duplicating it.
 **Field mapping (API to UI):**
 - `type`: `career_fair`→Career fair, `info_session`→Info session, `hackathon`/`case_competition`→Workshop, `lecture`→Talk, `club_event`→Club, `networking`/`tabling`→Networking, `other`→Talk.
 - `source`→calendar source filter: `careerlaunch`/`rollins`/`handshake_manual`→`byu-careers`; `clubs`/`byusa`→`byu-clubs`; everything else→`byu-departments`.
+- `source_url`→`sourceUrl` (the "View original listing" link in the detail sheet and the Google Calendar event).
 - `companies`→`employerIds`. Companies not in `src/data/employers.ts` are registered on the fly with a gray placeholder logo and initials. Add a real entry to `employers.ts` to give a company a color or industry.
 - `fields`→`tags` and `industries`.
 - The score shown in the UI is `round(apiScore * 3)` capped at 99, because the API score tops out near 30.
 
 **Known gaps and gotchas**
-- `attendeeIds` is always empty for API events, so the "people to meet" section is empty. The API has no people data yet.
-- The Profile page's "top events" still scores the static sample events from `src/data/events.ts`; it hasn't been switched to the API. Reuse `fetchRecommendedEvents` there.
-- The profile-to-contract mapping is approximate: `fields` is built from `interests.industries` plus `topSkills`, and `target_roles` from `lookingFor.roleTypes`. If the profile team adds explicit target roles or fields, update `toApiProfile` in `backend.ts`.
+- `attendeeIds` is always empty for API events (the API has no people data yet), so the UI hides "People to meet" and the top card shows the attending companies instead. Requested in [`api-requests.md`](./api-requests.md).
+- The Profile page's "Events that fit this profile" uses `useEventFeed` (same request as the Events page) and shows the top 3 with their `reason`.
+- `toApiProfile` (exported from `backend.ts`) maps `interests.companies` to `target_companies`; `lookingFor.roleTypes` plus `employmentType` ("internship" or "full-time") to `target_roles`; and `interests.industries` (split into words, so "Data & Analytics" becomes "data" and "analytics"), `education.major` and `topSkills` (or the first grouped skills) to `fields`. `education.gradYear` becomes `grad_date` (`YYYY` or `YYYY-MM`). `user_id` is not sent, because the only id is the student's email.
+- `useEventFeed` keeps the API's order (no client re-sort) and refetches only when the `toApiProfile` output changes.
+- `companies` order varies between calls, so `toCampusEvent` puts `matched_companies` first. `start_at`/`end_at` currently come back as UTC `Z` strings, not with the Denver offset described above; `new Date()` handles both.
 - `description` can be long and contain boilerplate. Truncate in cards.
 - Events are only returned inside the `from`/`to` window. The UI currently asks for 31 days. If you add a "next 90 days" filter, change the window in `fetchRecommendedEvents`, not just a client-side filter.
 - Do not call the API once per keystroke or per card. Fetch once per page load or profile change.
@@ -220,3 +223,4 @@ Add a line to the changelog below for each change.
 ## Changelog
 
 - 2026-10-02: Initial API: `/health`, `/events`, `/recommendations`, `/submit`; BYU Calendar ingest (daily); 17 seed events; front-end adapter behind `VITE_API_URL`; `relevant_only` option and word-aware field matching.
+- 2026-10-02: Front end: Profile top events on the live API; API order preserved; refetch on profile change; richer `toApiProfile`; `source_url` shown; matched companies first; employer entries for the live companies (Redo, Neighbor, Waystar and others). The data gap report for the API owner is in [`api-requests.md`](./api-requests.md).

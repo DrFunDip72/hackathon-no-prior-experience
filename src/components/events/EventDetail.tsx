@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarIcon, MapPinIcon, XIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { CalendarIcon, ExternalLinkIcon, MapPinIcon, XIcon } from 'lucide-react';
 import { AddToCalendarButton } from './AddToCalendarButton';
 import { PersonRow } from './PersonRow';
 import { EmployerLogo } from '../ui/EmployerLogo';
@@ -60,7 +61,7 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
           <ul className="mt-2 space-y-1.5">
               {[
             ...day.map((b) => ({ key: b.id, start: b.start, title: b.title, isEvent: false, conflict: b.title === item.conflict })),
-            { key: 'this', start: event.startTime, title: event.title, isEvent: true, conflict: false }].
+            { key: 'this', start: format(item.start, 'HH:mm'), title: event.title, isEvent: true, conflict: false }].
 
             sort((a, b) => toMinutes(a.start) - toMinutes(b.start)).
             map((row) => ({ ...row, time: formatClock(row.start) })).
@@ -91,7 +92,18 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
           <h3 id="about-heading" className="text-sm font-semibold text-ink">
             About
           </h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted">{event.description}</p>
+          {event.description && <p className="mt-2 text-sm leading-relaxed text-muted">{event.description}</p>}
+          {event.sourceUrl &&
+          <a
+            href={event.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-navy hover:underline">
+
+              View original listing
+              <ExternalLinkIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          }
           {item.employers.length > 0 &&
           <div className="mt-3 flex flex-wrap gap-2">
               {item.employers.map((e) =>
@@ -104,20 +116,18 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
           }
         </section>
 
+        {item.people.length > 0 &&
         <section className="mt-6" aria-labelledby="people-heading">
-          <h3 id="people-heading" className="text-sm font-semibold text-ink">
-            People to meet
-          </h3>
-          {item.people.length ?
-          <ul className="mt-1 divide-y divide-line">
+            <h3 id="people-heading" className="text-sm font-semibold text-ink">
+              People to meet
+            </h3>
+            <ul className="mt-1 divide-y divide-line">
               {item.people.map((p) =>
             <PersonRow key={p.person.id} scored={p} />
             )}
-            </ul> :
-
-          <p className="mt-2 text-sm text-muted">No guest list published yet. Career mentors staff this event.</p>
-          }
-        </section>
+            </ul>
+          </section>
+        }
       </div>
 
       <div className="border-t border-line bg-white p-4">

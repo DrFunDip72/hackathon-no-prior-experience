@@ -3,7 +3,7 @@ import React from 'react';
 const steps = [
 {
   title: 'Tell us about you',
-  body: 'Drop in your resume, Handshake, and LinkedIn, then answer a few questions. We build a profile recruiters can scan in seconds.'
+  body: 'Drop in your resume and LinkedIn, then answer a couple of quick questions. We build a profile recruiters can scan in seconds.'
 },
 {
   title: 'Connect your calendars',

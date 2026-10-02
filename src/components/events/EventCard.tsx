@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { Availability } from './Availability';
 import { AddToCalendarButton } from './AddToCalendarButton';
 import { Avatar } from '../ui/Avatar';
+import { EmployerLogo } from '../ui/EmployerLogo';
 import { formatDay, formatTimeRange } from '../../utils/dates';
 import type { ScoredEvent } from '../../types/event';
 
@@ -68,8 +69,22 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
                 {item.people.length > 1 && <span className="text-muted"> and {item.people.length - 1} more</span>}
               </p>
             </div> :
-
-          <span className="text-sm text-muted">Guest list not published yet</span>
+          item.employers.length > 0 ?
+          <div className="flex min-w-0 items-center gap-3">
+              <div className="flex -space-x-1.5">
+                {item.employers.slice(0, 4).map((e) =>
+              <span key={e.id} className="rounded-md ring-2 ring-white">
+                    <EmployerLogo employer={e} size="sm" />
+                  </span>
+              )}
+              </div>
+              <p className="min-w-0 text-sm text-ink">
+                <span className="font-medium">{item.employers.slice(0, 2).map((e) => e.name).join(', ')}</span>
+                {item.employers.length > 2 && <span className="text-muted"> and {item.employers.length - 2} more</span>}
+                <span className="text-muted"> attending</span>
+              </p>
+            </div> :
+          <span />
           }
           <AddToCalendarButton item={item} added={added} onAdd={onAdd} />
         </div>
@@ -93,7 +108,7 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
         <p className="mt-0.5 truncate text-sm text-muted">
           {formatDay(item.start)}, {formatTimeRange(item.start, item.end)} · {event.location}
         </p>
-        <p className="mt-1.5 truncate text-sm text-ink">{whyLine(item)}</p>
+        <p className="mt-1.5 line-clamp-2 text-sm text-ink">{whyLine(item)}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Availability conflict={item.conflict} googleConnected={googleConnected} />
           {item.people.length > 0 &&

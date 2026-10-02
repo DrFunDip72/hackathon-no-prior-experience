@@ -7,7 +7,6 @@ import { Composer } from '../components/onboarding/Composer';
 import { BuildingProfile } from '../components/onboarding/BuildingProfile';
 import { AccountStep } from '../components/onboarding/AccountStep';
 import { useSession } from '../contexts/SessionContext';
-import { onboardingSteps } from '../data/onboardingSteps';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { firstName } from '../utils/text';
 import type { OnboardingStep } from '../types/onboarding';
@@ -16,12 +15,11 @@ export function Onboarding() {
   const { state } = useSession();
   const ob = useOnboarding();
   const endRef = useRef<HTMLDivElement>(null);
-  const answeredSteps = onboardingSteps.slice(0, ob.draft.stepIndex);
-  const progress = Math.min(ob.draft.stepIndex / onboardingSteps.length, 1);
+  const { answeredSteps, progress } = ob;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [ob.draft.stepIndex, ob.editing]);
+  }, [answeredSteps.length, ob.editing]);
 
   // Signed in with a profile already: never overwrite it from here.
   if (ob.user && state.profile) return <Navigate to="/profile" replace />;

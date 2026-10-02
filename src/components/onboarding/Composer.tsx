@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
-import { ArrowUpIcon, ClipboardPasteIcon, FileTextIcon, ImagePlusIcon, Loader2Icon, PaperclipIcon, XIcon } from 'lucide-react';
+import { ArrowRightIcon, ArrowUpIcon, ClipboardPasteIcon, FileTextIcon, ImagePlusIcon, Loader2Icon, PaperclipIcon, XIcon } from 'lucide-react';
 import { isPdf, readAsDataUrl, resizeImage } from '../../utils/files';
+import { splitList, unique } from '../../utils/text';
 import type { OnboardingDraft, OnboardingStep, SourceSubmission } from '../../types/onboarding';
 import type { InitialValue } from '../../hooks/useOnboarding';
 
@@ -15,7 +16,6 @@ interface ComposerProps {
   onCancelEdit: () => void;
 }
 
-const HANDSHAKE_RE = /^(https?:\/\/)?([\w-]+\.)*joinhandshake\.com\/\S+/i;
 const LINKEDIN_RE = /^(https?:\/\/)?([\w-]+\.)*linkedin\.com\/in\/[\w%-]+\/?/i;
 const MAX_BYTES = 5 * 1024 * 1024;
 const MIN_PASTE = 80;
@@ -32,7 +32,15 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
   const [attachment, setAttachment] = useState<{name: string;dataUrl: string;} | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const isTyped = step.kind === 'text' || step.kind === 'url' || step.kind === 'linkedin';
+  // Chips: options the student picked, plus anything typed under "Something else".
+  const options = step.options ?? [];
+  const initialList = splitList(initial.value);
+  const [picked, setPicked] = useState(() => initialList.filter((v) => options.includes(v)));
+  const [other, setOther] = useState(() => initialList.filter((v) => !options.includes(v)).join(', '));
+  const [showOther, setShowOther] = useState(() => other !== '');
+
+  const knownLinkedin = step.kind === 'linkedin' && Boolean(step.knownUrl);
+  const isTyped = step.kind === 'text' || step.kind === 'linkedin' && !knownLinkedin;
   const readingLabel = step.kind === 'resume' ? 'Reading your resume…' : 'Reading your LinkedIn…';
 
   const read = async (input: SourceSubmission) => {
@@ -66,10 +74,6 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
   };
 
   const validUrl = (v: string): boolean => {
-    if (step.validate === 'handshake' && !HANDSHAKE_RE.test(v)) {
-      setError('That doesn’t look like a Handshake link. It should include joinhandshake.com.');
-      return false;
-    }
     if (step.validate === 'linkedin' && !LINKEDIN_RE.test(v)) {
       setError('That doesn’t look like a LinkedIn profile. It should look like linkedin.com/in/your-name.');
       return false;
@@ -77,12 +81,23 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
     return true;
   };
 
+  const submitChips = () => {
+    const chosen = unique([...options.filter((o) => picked.includes(o)), ...(showOther ? splitList(other) : [])]);
+    if (!chosen.length) return setError('Pick at least one, or skip this one for now.');
+    onSubmit(chosen.join(', '));
+  };
+
+  const togglePick = (option: string) => {
+    setError(null);
+    setPicked((p) => p.includes(option) ? p.filter((o) => o !== option) : [...p, option]);
+  };
+
   const submitText = () => {
-    const v = value.trim();
+    const v = step.knownUrl ?? value.trim();
     if (step.kind === 'linkedin') {
       const text = pasting ? pasted.trim() : '';
       if (!v && !attachment && !text) return setError('Add your LinkedIn URL or PDF, or skip this one for now.');
-      if (v && !validUrl(v)) return;
+      if (v && !step.knownUrl && !validUrl(v)) return;
       if (pasting && text && text.length < MIN_PASTE) return setError('That’s a bit short. Paste your whole LinkedIn profile, or clear it.');
       void read({
         step: 'linkedin',
@@ -94,8 +109,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
       return;
     }
     if (!v) return setError('Type an answer, or skip this one for now.');
-    if (step.kind === 'url' && !validUrl(v)) return;
-    onSubmit(step.kind === 'url' ? withProtocol(v) : v);
+    onSubmit(v);
   };
 
   const submitPastedResume = () => {
@@ -172,6 +186,10 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
 
   const footerHint = busy ?
   '' :
+  knownLinkedin ?
+  'Optional' :
+  step.kind === 'chips' ?
+  initial.suggested ? 'Picked from what you shared. Tap to change.' : 'Pick as many as you like' :
   initial.suggested && value === initial.value ?
   'Filled in from what you shared. Press Enter to keep it, or edit.' :
   step.kind === 'resume' && pasting ?
@@ -294,6 +312,73 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
         </div>
       }
 
+      {step.kind === 'chips' &&
+      <div className="p-1">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={step.prompt}>
+            {options.map((option) => {
+            const on = picked.includes(option);
+            return (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={on}
+                onClick={() => togglePick(option)}
+                className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors duration-150 ${
+                on ? 'border-navy bg-navy-50 text-navy' : 'border-line text-ink hover:border-navy-200 hover:bg-canvas'}`
+                }>
+
+                  {option}
+                </button>);
+
+          })}
+            <button
+            type="button"
+            aria-pressed={showOther}
+            onClick={() => setShowOther((s) => !s)}
+            className={`rounded-lg border border-dashed px-3.5 py-2 text-sm font-medium transition-colors duration-150 ${
+            showOther ? 'border-navy bg-navy-50 text-navy' : 'border-line text-muted hover:border-navy-200 hover:text-ink'}`
+            }>
+
+              Something else
+            </button>
+          </div>
+          {showOther &&
+        <div className="mt-2">
+              <label htmlFor={`other-${step.id}`} className="sr-only">
+                {step.placeholder}
+              </label>
+              <input
+            id={`other-${step.id}`}
+            autoFocus
+            value={other}
+            onChange={(e) => {
+              setOther(e.target.value);
+              if (error) setError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                submitChips();
+              }
+            }}
+            placeholder={step.placeholder}
+            className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-muted/70 focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20" />
+
+            </div>
+        }
+          <div className="flex justify-end pt-3">
+            <button
+            type="button"
+            onClick={submitChips}
+            className="flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
+
+              Continue
+              <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      }
+
       {isTyped &&
       <form
         onSubmit={(e) => {
@@ -337,7 +422,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
       }
 
       {step.kind === 'linkedin' &&
-      <div className="border-t border-line pt-2">
+      <div className={knownLinkedin ? 'p-1' : 'border-t border-line pt-2'}>
           {fileInput}
           {attachment ?
         <div className="flex items-center justify-between gap-2 rounded-lg bg-canvas px-3 py-2 text-sm text-ink">
@@ -375,6 +460,19 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
               {attachment || pasted.trim() ? readingLabel : 'Saving…'}
             </p>
         }
+          {knownLinkedin &&
+        <div className="flex justify-end pt-3">
+              <button
+            type="button"
+            disabled={busy}
+            onClick={submitText}
+            className="flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
+
+                {attachment || pasting && pasted.trim() ? 'Read it and continue' : 'Continue'}
+                <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+        }
         </div>
       }
 
@@ -386,7 +484,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
 
         <span className="text-xs text-muted">{footerHint}</span>
         }
-        {step.kind !== 'photo' &&
+        {step.kind !== 'photo' && !knownLinkedin &&
         <button
           type="button"
           onClick={onSkip}

@@ -1,16 +1,19 @@
 import type { ResumeExtract } from './resume';
 
-export type StepKind = 'resume' | 'linkedin' | 'url' | 'text' | 'choice' | 'photo';
+/** choice: tap one option to answer. chips: pick several, optionally add your own, then Continue. */
+export type StepKind = 'resume' | 'linkedin' | 'text' | 'choice' | 'chips' | 'photo';
 
 export type StepId =
 'resume' |
-'handshake' |
 'linkedin' |
 'majorYear' |
 'experience' |
 'skills' |
 'goals' |
+'roles' |
 'employmentType' |
+'companies' |
+'industries' |
 'photo';
 
 export interface OnboardingStep {
@@ -20,8 +23,10 @@ export interface OnboardingStep {
   helper?: string;
   placeholder?: string;
   options?: string[];
-  validate?: 'handshake' | 'linkedin';
+  validate?: 'linkedin';
   multiline?: boolean;
+  /** LinkedIn step: the URL the AI reader already found, so the student isn't asked to type it. */
+  knownUrl?: string;
 }
 
 export interface Answer {
@@ -41,8 +46,11 @@ export interface SourceSubmission {
   text?: string;
 }
 
+/**
+ * Which steps are asked depends on what the AI reader found (see stepsFor), so progress is derived
+ * from `answers`: the active step is the first visible one without an answer.
+ */
 export interface OnboardingDraft {
-  stepIndex: number;
   answers: Partial<Record<StepId, Answer>>;
   resumeFileName: string | null;
   resumeDataUrl: string | null;

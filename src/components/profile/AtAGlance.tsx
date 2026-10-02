@@ -4,8 +4,7 @@ import { Chip } from '../ui/Chip';
 import { TextField } from '../ui/TextField';
 import { useSectionEditor } from '../../hooks/useSectionEditor';
 import { joinList, splitList } from '../../utils/text';
-
-const EMPLOYMENT = ['Internship', 'Full-time', 'Either'];
+import { EMPLOYMENT_OPTIONS } from '../../data/onboardingSteps';
 
 export function AtAGlance({ profile, editable, onSave }: SectionProps) {
   const { lookingFor } = profile;
@@ -59,7 +58,7 @@ export function AtAGlance({ profile, editable, onSave }: SectionProps) {
           <fieldset>
             <legend className="mb-1.5 text-sm font-medium text-ink">Type</legend>
             <div className="flex flex-wrap gap-2">
-              {EMPLOYMENT.map((t) =>
+              {EMPLOYMENT_OPTIONS.map((t) =>
             <button
               key={t}
               type="button"

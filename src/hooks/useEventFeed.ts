@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { calendarSources } from '../data/calendarSources';
 import { api } from '../utils/api';
-import { API_URL, fetchRecommendedEvents } from '../utils/backend';
+import { API_URL, fetchRecommendedEvents, toApiProfile } from '../utils/backend';
 import { daysFromToday } from '../utils/dates';
 import { getProfileTerms, scoreEvent } from '../utils/matching';
 import { unique } from '../utils/text';
@@ -30,6 +30,8 @@ export function useEventFeed() {
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [filters, setFilters] = useState<FeedFilters>(defaultFilters);
+  // Refetch only when the fields the API ranks on change, not on every profile edit or render.
+  const profileKey = API_URL && profile ? JSON.stringify(toApiProfile(profile)) : '';
 
   useEffect(() => {
     let alive = true;
@@ -41,7 +43,8 @@ export function useEventFeed() {
     return () => {
       alive = false;
     };
-  }, [attempt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt, profileKey]);
 
   const googleConnected = Boolean(state.connections.google);
   const connectedSources = calendarSources.
@@ -54,10 +57,11 @@ export function useEventFeed() {
     if (!raw) return [];
     const terms = getProfileTerms(profile);
     const now = new Date();
-    return raw.
+    const scored = raw.
     map((e) => scoreEvent(e, profile, terms, googleConnected)).
-    filter((e) => e.end > now).
-    sort((a, b) => b.score - a.score);
+    filter((e) => e.end > now);
+    // API results arrive ranked best-first; keep that order. Only sample data is ranked here.
+    return API_URL ? scored : scored.sort((a, b) => b.score - a.score);
   }, [raw, profile, googleConnected]);
 
   const scored = useMemo(

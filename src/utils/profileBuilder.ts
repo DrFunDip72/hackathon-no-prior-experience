@@ -1,5 +1,6 @@
 import { employers } from '../data/employers';
 import { industries } from '../data/industries';
+import { stepsFor } from '../data/onboardingSteps';
 import { emptyResume, type ResumeData } from '../data/sampleResume';
 import type { OnboardingDraft, StepId } from '../types/onboarding';
 import type { Profile } from '../types/profile';
@@ -100,13 +101,15 @@ export function describeExtract(extract: ResumeExtract): string {
 }
 
 /** Answers to prefill from the AI reader, so the student just confirms or edits them. */
-export function suggestedAnswer(id: StepId, extract: ResumeExtract | null | undefined): string {
+export function suggestedAnswer(id: StepId, extract: ResumeExtract | null | undefined, landingPrompt = ''): string {
+  // Companies typed on the landing page carry over even when the reader found nothing.
+  if (id === 'companies') return detectCompanies(landingPrompt).join(', ');
   if (!extract) return '';
   switch (id) {
     case 'linkedin':
       return extract.linkedinUrl;
-    case 'handshake':
-      return extract.handshakeUrl;
+    case 'roles':
+      return extract.suggestedRoles.filter((r) => !r.includes(',')).slice(0, 3).join(', ');
     case 'majorYear':
       return [extract.education.major, extract.year.toLowerCase()].filter(Boolean).join(', ');
     case 'experience':
@@ -121,9 +124,11 @@ export function suggestedAnswer(id: StepId, extract: ResumeExtract | null | unde
 }
 
 export function buildProfile(draft: OnboardingDraft, user: SessionUser | null): Profile {
+  // Only answers to steps still being asked count: a re-read resume can make earlier questions moot.
+  const asked = new Set(stepsFor(draft).map((s) => s.id));
   const answer = (id: StepId) => {
     const a = draft.answers[id];
-    return a && !a.skipped ? a.value.trim() : '';
+    return a && !a.skipped && asked.has(id) ? a.value.trim() : '';
   };
 
   const extract = draft.extract ?? null;
@@ -132,9 +137,10 @@ export function buildProfile(draft: OnboardingDraft, user: SessionUser | null): 
   const gradYear = base.education.gradYear && year === base.year ? base.education.gradYear : gradYearFor(year);
 
   const goals = answer('goals');
-  const companies = unique(detectCompanies(goals));
-  const detectedIndustries = detectIndustries(goals);
-  const roleTypes = goals ? parseRoles(goals, companies) : [];
+  const companies = unique([...splitList(answer('companies')), ...detectCompanies(goals)]);
+  const detectedIndustries = unique([...splitList(answer('industries')), ...detectIndustries(goals)]);
+  const chosenRoles = splitList(answer('roles'));
+  const roleTypes = chosenRoles.length ? chosenRoles : goals ? parseRoles(goals, companies) : [];
   const skills = splitList(answer('skills'));
 
   const knownSkills = new Set(base.skillGroups.flatMap((g) => g.skills.map((s) => s.toLowerCase())));
@@ -153,7 +159,7 @@ export function buildProfile(draft: OnboardingDraft, user: SessionUser | null): 
     headline,
     summary: answer('experience') || base.summary,
     year,
-    handshakeUrl: answer('handshake') || extract?.handshakeUrl || '',
+    handshakeUrl: extract?.handshakeUrl || '',
     linkedinUrl: answer('linkedin') || extract?.linkedinUrl || '',
     resumeFileName: draft.resumeFileName,
     resumeDataUrl: draft.resumeDataUrl,

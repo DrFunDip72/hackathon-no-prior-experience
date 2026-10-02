@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../contexts/SessionContext';
-import { onboardingSteps } from '../data/onboardingSteps';
+import { stepsFor } from '../data/onboardingSteps';
 import { api } from '../utils/api';
 import { buildProfile, describeExtract, suggestedAnswer } from '../utils/profileBuilder';
 import { readProfileSources, stripDataUrl } from '../utils/resumeReader';
@@ -11,7 +11,6 @@ import type { Profile } from '../types/profile';
 import type { ProfileSources } from '../types/resume';
 
 const emptyDraft: OnboardingDraft = {
-  stepIndex: 0,
   answers: {},
   resumeFileName: null,
   resumeDataUrl: null,
@@ -38,15 +37,19 @@ export function useOnboarding() {
   const draftRef = useRef(draft);
   // PDFs too big for storage stay in memory so LinkedIn can still be read together with the resume.
   const pdfs = useRef<{resume?: string;linkedin?: string;}>({});
-  const [resumed] = useState(() => draft.stepIndex > 0);
+  const [resumed] = useState(() => Object.keys(draft.answers).length > 0);
   const [editing, setEditing] = useState<StepId | null>(null);
   const [phase, setPhase] = useState<'chat' | 'building' | 'account'>('chat');
   const [builtProfile, setBuiltProfile] = useState<Profile | null>(null);
   const [buildError, setBuildError] = useState<string | null>(null);
 
-  const complete = draft.stepIndex >= onboardingSteps.length;
-  const activeIndex = editing ? onboardingSteps.findIndex((s) => s.id === editing) : draft.stepIndex;
-  const activeStep = onboardingSteps[activeIndex] ?? null;
+  // The step list shrinks once the AI reader has filled things in; the next question is the first one unanswered.
+  const steps = stepsFor(draft);
+  const openIndex = steps.findIndex((s) => !draft.answers[s.id]);
+  const complete = openIndex === -1;
+  const answeredSteps = complete ? steps : steps.slice(0, openIndex);
+  const activeStep = (editing ? steps.find((s) => s.id === editing) : steps[openIndex]) ?? null;
+  const progress = answeredSteps.length / steps.length;
 
   const persist = (next: OnboardingDraft) => {
     draftRef.current = next;
@@ -55,20 +58,15 @@ export function useOnboarding() {
     api.saveGuestDraft(next);
   };
 
-  /** Records an answer for a step, then moves on (or closes the edit). */
-  const record = (id: StepId, answer: Answer, extra: Partial<OnboardingDraft>, wasEditing: boolean) => {
+  /** Records an answer for a step, which moves the chat on (or closes the edit). */
+  const record = (id: StepId, answer: Answer, extra: Partial<OnboardingDraft>) => {
     const current = draftRef.current;
-    persist({
-      ...current,
-      ...extra,
-      answers: { ...current.answers, [id]: answer },
-      stepIndex: wasEditing ? current.stepIndex : current.stepIndex + 1
-    });
+    persist({ ...current, ...extra, answers: { ...current.answers, [id]: answer } });
     setEditing(null);
   };
 
   const submit = (value: string, extra: Partial<OnboardingDraft> = {}) => {
-    if (activeStep) record(activeStep.id, { value, skipped: false }, extra, editing !== null);
+    if (activeStep) record(activeStep.id, { value, skipped: false }, extra);
   };
 
   const skip = () => {
@@ -85,12 +83,11 @@ export function useOnboarding() {
     {};
     if (activeStep.kind === 'resume') delete pdfs.current.resume;
     if (activeStep.kind === 'linkedin') delete pdfs.current.linkedin;
-    record(activeStep.id, { value: '', skipped: true }, cleared, editing !== null);
+    record(activeStep.id, { value: '', skipped: true }, cleared);
   };
 
   /** Saves what the student gave us on the resume or LinkedIn step and asks the AI reader to read it. */
   const submitSource = async (input: SourceSubmission) => {
-    const wasEditing = editing !== null;
     const current = draftRef.current;
     const pdf = input.dataUrl ? stripDataUrl(input.dataUrl) : undefined;
     pdfs.current[input.step] = pdf;
@@ -115,12 +112,15 @@ export function useOnboarding() {
     if (sources.linkedin && linkedinUrl) sources.linkedin.url = linkedinUrl;
 
     let extract = merged.extract ?? null;
-    let note: string;
+    let note: string | undefined;
     if (pdf || input.text) {
       const result = await readProfileSources(sources);
       if (result.ok) {
         extract = result.data;
-        note = `Got it: ${describeExtract(result.data)}. I’ve filled in the next answers from it, so press Enter to keep each one or edit it.`;
+        note =
+        input.step === 'resume' ?
+        `Got it: ${describeExtract(result.data)}. That covers most of your profile, so I just have a few quick questions.` :
+        `Read your LinkedIn too. Now I have: ${describeExtract(result.data)}.`;
       } else if (input.step === 'resume') {
         extract = null;
         note = 'I couldn’t read it automatically, so I’ll ask a few quick questions.';
@@ -129,16 +129,15 @@ export function useOnboarding() {
         'I couldn’t read your LinkedIn automatically, so I’ll stick with what I got from your resume.' :
         'I couldn’t read it automatically, so I’ll ask a few quick questions.';
       }
-    } else {
+    } else if (!activeStep?.knownUrl) {
       note = 'Saved. I can’t open LinkedIn links myself since they need a login, so I’ll just show it on your profile.';
     }
+    // A LinkedIn URL the reader found needs no reply: the prompt already said it's linked.
 
-    record(
-      input.step,
-      { value: input.label, skipped: false },
-      { ...next, extract, notes: { ...current.notes, [input.step]: note } },
-      wasEditing
-    );
+    const notes = { ...current.notes };
+    if (note) notes[input.step] = note;else
+    delete notes[input.step];
+    record(input.step, { value: input.label, skipped: false }, { ...next, extract, notes });
   };
 
   const initialValueFor = (id: StepId): InitialValue => {
@@ -148,7 +147,7 @@ export function useOnboarding() {
       const fromLanding = takeLandingPrompt();
       if (fromLanding) return { value: fromLanding, suggested: false };
     }
-    const value = suggestedAnswer(id, draft.extract);
+    const value = suggestedAnswer(id, draft.extract, takeLandingPrompt());
     return { value, suggested: Boolean(value) };
   };
 
@@ -196,6 +195,8 @@ export function useOnboarding() {
     buildError,
     resumed,
     complete,
+    answeredSteps,
+    progress,
     activeStep,
     submit,
     submitSource,
