@@ -24,8 +24,8 @@ export function scoreStudent(student: MockStudent, query: EmployerQuery): Scored
     reasons.push(`Looking for a ${student.targetTitle} role`);
   }
 
-  // 3. Skills show up in the job description or "what you're looking for" text.
-  const text = `${query.jobTitle} ${query.lookingFor} ${query.jobDescription}`;
+  // 3. Skills picked on the skills step, or mentioned in the "anything else" text.
+  const text = `${query.jobTitle} ${query.skills.join(' ')} ${query.lookingFor}`;
   const skillHits = student.skills.filter((s) => containsWord(text, s));
   if (skillHits.length) {
     raw += Math.min(skillHits.length, 4) * 8;

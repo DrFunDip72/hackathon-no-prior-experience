@@ -2,15 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckIcon, Loader2Icon } from 'lucide-react';
 
-const STEPS = ['Reading what you shared', 'Scoring the student pool'];
-
 /** Same loading-checklist language as BuildingProfile.tsx on the student side; own copy, not imported. */
-export function BuildingMatches() {
+export function BuildingMatches({ usedExtract }: {usedExtract: boolean;}) {
+  const steps = [usedExtract ? 'Combining what I read with your answers' : 'Organizing your answers', 'Scoring the student pool'];
   const [done, setDone] = useState(0);
 
   useEffect(() => {
-    const timers = STEPS.map((_, i) => setTimeout(() => setDone(i + 1), 400 * (i + 1)));
+    const timers = steps.map((_, i) => setTimeout(() => setDone(i + 1), 400 * (i + 1)));
     return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -24,7 +24,7 @@ export function BuildingMatches() {
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Finding your matches</h1>
         <p className="mt-1.5 text-sm text-muted">Just a second.</p>
         <ul className="mt-8 space-y-4">
-          {STEPS.map((label, i) => {
+          {steps.map((label, i) => {
             const state = i < done ? 'done' : i === done ? 'active' : 'waiting';
             return (
               <li key={label} className="flex items-center gap-3">

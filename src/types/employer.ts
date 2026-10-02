@@ -33,10 +33,10 @@ export interface EmployerQuery {
   companyName: string;
   jobTitle: string;
   employmentType: 'Internship' | 'Full-time' | 'Part-time' | 'Either' | '';
-  /** Free text: what the employer is looking for in a candidate. */
+  /** From the skills chips step; either picked from the job-posting extract or typed. */
+  skills: string[];
+  /** Free text: anything else the employer wants known about the ideal candidate. */
   lookingFor: string;
-  /** Pasted company/job description. */
-  jobDescription: string;
 }
 
 export interface ScoredStudent {

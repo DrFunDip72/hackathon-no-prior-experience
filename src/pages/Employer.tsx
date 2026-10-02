@@ -1,38 +1,49 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { SparklesIcon } from 'lucide-react';
+import { ClipboardPasteIcon, FileTextIcon, SparklesIcon } from 'lucide-react';
 import { Logo } from '../components/Logo';
 import { EmployerChatBubble } from '../components/employer/EmployerChatBubble';
 import { EmployerComposer } from '../components/employer/EmployerComposer';
 import { BuildingMatches } from '../components/employer/BuildingMatches';
 import { StudentResultCard } from '../components/employer/StudentResultCard';
-import { employerSteps } from '../data/employerSteps';
+import { employerStepsFor } from '../data/employerSteps';
 import { mockStudents } from '../data/mockStudents';
 import { rankStudents } from '../utils/employerMatching';
+import { readJobSource, stripDataUrl } from '../utils/jobReader';
+import { splitList } from '../utils/text';
+import type { JobSourceInput } from '../components/employer/EmployerComposer';
 import type { EmployerStep, EmployerStepId } from '../data/employerSteps';
+import type { JobExtract } from '../types/job';
 import type { EmployerQuery } from '../types/employer';
 
 type Phase = 'chat' | 'building' | 'results';
 type Answers = Partial<Record<EmployerStepId, string>>;
 
 /**
- * Employer side of the demo, built as the same one-question-at-a-time chat flow as student
- * onboarding (its own components under src/components/employer/, not imported from
- * src/components/onboarding/ -- that folder is owned by a parallel session). No sign-in or
- * verification yet -- "for now let us toggle" -- so this stays publicly reachable.
+ * Employer side of the demo, built as the same pipeline as student onboarding
+ * (src/pages/Onboarding.tsx + src/hooks/useOnboarding.ts, read for reference): upload a document,
+ * send it to the same Gemini-backed /api/parse-resume endpoint (kind: 'job'), and pre-fill the rest
+ * of the questions from what it finds, exactly as a resume pre-fills a student's roles/companies/
+ * skills. No sign-in or verification yet -- "for now let us toggle" -- so this stays publicly
+ * reachable.
  */
 export function Employer() {
+  const [extract, setExtract] = useState<JobExtract | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
+  const [notes, setNotes] = useState<Partial<Record<EmployerStepId, string>>>({});
   const [stepIndex, setStepIndex] = useState(0);
   const [editing, setEditing] = useState<EmployerStepId | null>(null);
   const [phase, setPhase] = useState<Phase>('chat');
   const endRef = useRef<HTMLDivElement>(null);
 
-  const answeredSteps = employerSteps.slice(0, stepIndex);
-  const activeIndex = editing ? employerSteps.findIndex((s) => s.id === editing) : stepIndex;
-  const activeStep = employerSteps[activeIndex] ?? null;
-  const complete = stepIndex >= employerSteps.length;
-  const progress = Math.min(stepIndex / employerSteps.length, 1);
+  // Recomputed from the extract every render, same as stepsFor(draft) on the student side: once the
+  // posting states an employment type, that question drops out of the list entirely.
+  const steps = employerStepsFor(extract);
+  const answeredSteps = steps.slice(0, stepIndex);
+  const activeIndex = editing ? steps.findIndex((s) => s.id === editing) : stepIndex;
+  const activeStep = steps[activeIndex] ?? null;
+  const complete = stepIndex >= steps.length;
+  const progress = Math.min(stepIndex / steps.length, 1);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -52,22 +63,64 @@ export function Employer() {
     if (activeStep) record(activeStep.id, '', editing !== null);
   };
 
-  // A choice step has no suggestion to prefill; `initial` there just highlights the previous
-  // answer when editing.
-  const initialFor = (step: EmployerStep): string => answers[step.id] ?? (step.kind === 'text' ? step.suggested : '');
+  /** The job-posting upload step: reads it with the AI reader, same shape as useOnboarding's submitSource. */
+  const submitSource = async (input: JobSourceInput) => {
+    const wasEditing = editing !== null;
+    const result = await readJobSource(
+      input.dataUrl ? { job: { pdfBase64: stripDataUrl(input.dataUrl) } } : { job: { text: input.text } }
+    );
+    let note: string;
+    if (result.ok) {
+      setExtract(result.data);
+      const { companyName, jobTitle } = result.data;
+      note = companyName || jobTitle ?
+      `Got it: ${[companyName, jobTitle].filter(Boolean).join(' · ')}. I've filled in the next answers from it, so press Enter or Tab to keep each one or edit it.` :
+      "Read it, but couldn't find a clear company or title -- I'll ask a few quick questions.";
+    } else if (result.reason === 'unavailable') {
+      note = "The AI reader isn't configured right now, so I'll ask a few quick questions instead.";
+    } else {
+      note = "I couldn't read that automatically, so I'll ask a few quick questions.";
+    }
+    setNotes((n) => ({ ...n, jobPosting: note }));
+    record('jobPosting', input.fileName ?? 'Pasted text', wasEditing);
+  };
+
+  const initialFor = (step: EmployerStep): string => {
+    if (answers[step.id] !== undefined) return answers[step.id]!;
+    if (step.kind === 'text') return step.suggested;
+    // The skills chips step pre-picks whatever the job-posting extract found.
+    if (step.kind === 'chips' && step.id === 'skills') return (extract?.requiredSkills ?? []).join(', ');
+    return '';
+  };
 
   const query: EmployerQuery = {
     companyName: answers.company ?? '',
     jobTitle: answers.title ?? '',
-    employmentType: (answers.employmentType as EmployerQuery['employmentType']) ?? '',
-    lookingFor: answers.lookingFor ?? '',
-    jobDescription: answers.description ?? ''
+    employmentType: (answers.employmentType as EmployerQuery['employmentType']) ?? (extract?.employmentType || ''),
+    skills: splitList(answers.skills ?? ''),
+    lookingFor: answers.lookingFor ?? ''
   };
   const results = phase === 'results' ? rankStudents(mockStudents, query) : [];
 
   const findMatches = () => {
     setPhase('building');
     setTimeout(() => setPhase('results'), 900);
+  };
+
+  const renderAnswer = (step: EmployerStep) => {
+    const answer = answers[step.id];
+    if (step.kind === 'upload') {
+      if (!answer) return <span className="italic text-muted">Skipped</span>;
+      const pasted = answer === 'Pasted text';
+      return (
+        <span className="flex items-center gap-2">
+          {pasted ? <ClipboardPasteIcon className="h-4 w-4 shrink-0 text-navy" aria-hidden="true" /> : <FileTextIcon className="h-4 w-4 shrink-0 text-navy" aria-hidden="true" />}
+          <span className="break-all">{answer}</span>
+        </span>);
+
+    }
+    if (!answer) return <span className="italic text-muted">Skipped</span>;
+    return <span className="whitespace-pre-wrap break-words">{answer}</span>;
   };
 
   const header =
@@ -90,7 +143,7 @@ export function Employer() {
     return (
       <div className="flex min-h-screen w-full flex-col bg-white">
         {header}
-        <BuildingMatches />
+        <BuildingMatches usedExtract={Boolean(extract)} />
       </div>);
 
   }
@@ -110,6 +163,8 @@ export function Employer() {
                 setPhase('chat');
                 setStepIndex(0);
                 setAnswers({});
+                setExtract(null);
+                setNotes({});
               }}
               className="shrink-0 text-sm font-medium text-navy hover:underline">
 
@@ -144,13 +199,14 @@ export function Employer() {
           </EmployerChatBubble>
 
           {answeredSteps.map((step) => {
-            const answer = answers[step.id];
+            const note = notes[step.id];
             return (
               <div key={step.id} className="space-y-3">
                 <EmployerChatBubble role="assistant">{step.prompt}</EmployerChatBubble>
                 <EmployerChatBubble role="user" onEdit={() => setEditing(step.id)} isEditing={editing === step.id}>
-                  {answer ? <span className="whitespace-pre-wrap break-words">{answer}</span> : <span className="italic text-muted">Skipped</span>}
+                  {renderAnswer(step)}
                 </EmployerChatBubble>
+                {note && <EmployerChatBubble role="assistant">{note}</EmployerChatBubble>}
               </div>);
 
           })}
@@ -175,6 +231,7 @@ export function Employer() {
             initial={initialFor(activeStep)}
             isEditing={Boolean(editing)}
             onSubmit={submit}
+            onSubmitSource={submitSource}
             onSkip={skip}
             onCancelEdit={() => setEditing(null)} /> :
 
