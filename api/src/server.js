@@ -2,9 +2,8 @@ import { createServer } from 'node:http';
 import { pool, queryEvents, queryEventsByIds, queryCompanies, upsertEvent } from './db.js';
 import { recommend, DEFAULT_WINDOW_DAYS } from './scoring.js';
 import { readFileSync } from 'node:fs';
-import { extractEvent, extractEvents, buildSubmissionRow, buildBulkRows } from './extract.js';
+import { submitEvent, submitBulk } from './submit.js';
 import { checkSubmitToken, createRateLimiter, clientIp } from './guard.js';
-import { SOURCES } from './event.js';
 import { ingestByu } from './ingest-byu.js';
 import { ingestSheets, discoverTabUrls } from './ingest-sheet.js';
 import { ingestCs } from './ingest-cs.js';
@@ -28,7 +27,7 @@ const send = (res, status, body) => {
   res.writeHead(status, {
     'content-type': 'application/json',
     'access-control-allow-origin': '*',
-    'access-control-allow-headers': 'content-type',
+    'access-control-allow-headers': 'content-type,x-submit-token,authorization',
     'access-control-allow-methods': 'GET,POST,OPTIONS'
   });
   res.end(JSON.stringify(body));
@@ -80,29 +79,12 @@ const routes = {
   // Many events from one pasted dump (e.g. a Slack channel copied into /paste). Stores only the extracted events.
   'POST /submit/bulk': async (req) => {
     guardSubmit(req);
-    const { text, source } = await readJson(req);
-    if (!text || String(text).trim().length < 20) throw fail(400, 'send { text } with the pasted messages');
-    if (String(text).length > 200_000) throw fail(413, 'paste is too long; split it into chunks of about 200,000 characters');
-    const list = await extractEvents({ text: String(text) });
-    if (!list) throw fail(422, 'could not read events from the model output; try again');
-    const { rows, skipped } = buildBulkRows(list, { source: SOURCES.includes(source) ? source : 'user_submission' });
-    const events = [];
-    for (const row of rows) events.push(await upsertEvent(row));
-    return { saved: events.length, skipped, events };
+    return submitBulk(await readJson(req), { save: upsertEvent });
   },
 
   'POST /submit': async (req) => {
     guardSubmit(req);
-    const { text, image_base64: imageBase64, media_type: mediaType } = await readJson(req);
-    if (!text && !imageBase64) throw fail(400, 'send { text } or { image_base64 }');
-    const extracted = await extractEvent({ text, imageBase64, mediaType });
-    let row;
-    try {
-      row = buildSubmissionRow(extracted, text);
-    } catch (err) {
-      throw fail(422, `could not find a title and start time: ${err.message}`);
-    }
-    return { event: await upsertEvent(row), extracted: Boolean(extracted) };
+    return submitEvent(await readJson(req), { save: upsertEvent });
   }
 };
 
@@ -123,7 +105,8 @@ createServer(async (req, res) => {
   try {
     send(res, 200, await handler(req, url));
   } catch (err) {
-    if (!err.status) console.error(err);
+    // Provider and database errors can contain submitted text; never log those details.
+    if (!err.status) console.error(url.pathname.startsWith('/submit') ? 'submission failed' : err);
     send(res, err.status ?? 500, { error: err.status ? err.message : 'internal error' });
   }
 }).listen(PORT, () => console.log(`api listening on :${PORT}`));

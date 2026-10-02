@@ -24,6 +24,10 @@ export function Landing() {
           <a href="#how-it-works" className="hidden rounded-md px-3 py-2 text-sm text-muted transition-colors duration-150 hover:text-ink sm:block">
             How it works
           </a>
+          {/* No verification flow yet -- just a toggle to the employer side of the demo. */}
+          <Link to="/employer" className="hidden rounded-md px-3 py-2 text-sm text-muted transition-colors duration-150 hover:text-ink sm:block">
+            For employers
+          </Link>
           {user ?
           <Link to={appHome} className="rounded-lg bg-ink px-3.5 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
               Open app

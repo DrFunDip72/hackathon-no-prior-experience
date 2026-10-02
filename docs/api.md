@@ -4,7 +4,7 @@ The backend for Doorway's events page. It collects campus recruiting and network
 
 - **Base URL (production):** `https://doorway-api-production-db29.up.railway.app`
 - **Code:** [`api/`](../api) (plain Node ESM, one dependency: `pg`). Hosted on Railway as the `doorway-api` service, with a Railway Postgres database. The front end never talks to the database or to n8n, only to this API.
-- **Auth:** none. CORS is open (`*`). Don't send secrets or anything sensitive in requests.
+- **Auth:** read endpoints and recommendations are public. `/submit` and `/submit/bulk` require `SUBMIT_TOKEN` in `x-submit-token` or a Bearer header. CORS is open (`*`) and permits both auth headers. Never send Railway/Anthropic credentials or unrelated personal information in requests.
 - **Format:** JSON in, JSON out. Errors are `{ "error": "message" }` with an HTTP status.
 - **Time zone:** the data is America/Denver (MDT, UTC-6, until Nov 1 2026; then MST, UTC-7). **Responses return timestamps in UTC** (`2026-10-02T15:00:00.000Z`); the instants are correct. Parse with `new Date(iso)` and **display in Denver time**, e.g. `date.toLocaleString('en-US', { timeZone: 'America/Denver' })` or `date-fns-tz`, so students see the same clock time regardless of their browser's zone. Requests may send `from`/`to` with any offset.
 
@@ -100,21 +100,23 @@ Response: `Recommendation[]`, sorted by `score` descending, events scoring below
 ### `POST /submit/bulk`
 Pulls **many** events out of one pasted dump (e.g. messages copied from a Slack channel) using the LLM, and stores them. **Not for the public front end**: it needs the `x-submit-token` header (or `Authorization: Bearer <token>`) matching the server's `SUBMIT_TOKEN`, and is limited to 30 requests per hour per client. With no `SUBMIT_TOKEN` configured it is off (503).
 
-Body: `{ "text": "<pasted messages>", "source": "slack" }` (`source` optional, default `user_submission`; max ~200,000 characters). Response: `{ "saved": n, "skipped": ["Old Fair: already past", ...], "events": Event[] }`.
-- Only career events are kept (career fairs, info sessions, networking, hackathons, case competitions, tabling, speakers); job postings and chatter are ignored. Dates without a year mean the next occurrence.
-- Stored events are `verified: false` and carry the model's short summary as `description` plus the message's link as `registration_url`. **Poster names and the raw messages are never stored.** Past events and events with no readable date are skipped and reported.
-- Errors: `401` wrong/missing token, `503` token or `ANTHROPIC_API_KEY` not configured, `422` unreadable model output, `429` rate limited.
+Body: `{ "text": "<pasted messages>", "source": "slack" }` (`source` optional, default `user_submission`; max ~200,000 characters). Response: `{ "saved": n, "skipped": ["Old Fair: already past", ...], "events": Event[] }`. Optional `dry_run: true` performs extraction without database writes: `{ "saved": 0, "skipped": [...], "events": EventPreview[], "dry_run": true }`. Preview rows have no `created_at`/`updated_at`; timestamps may carry a Denver offset instead of UTC. Computed ids do not mean a stored event exists. Previews still use LLM credit and require the submit token.
+- Only career events are kept (career fairs, info sessions, networking, hackathons, case competitions, tabling, speakers); job postings and chatter are ignored. Missing/ambiguous dates or start times must not be guessed; relative dates use dated message context. Undated and old events are skipped.
+- New events are `verified: false` and carry the model's short event summary as `description` plus a public HTTP(S) registration/details link as `registration_url`. Private Slack links and credential-bearing/unsafe URLs are discarded. Only allowlisted event fields are stored; `people` is empty and model-supplied ids/source URLs/metadata are discarded. The prompt excludes poster names, personal names and contact information. Raw messages are never saved; provider/database error details are never logged for submit routes. Existing verified duplicates retain their trusted source and optional facts when absent from new input.
+- Errors: `400` invalid input, `401` wrong/missing token, `413` oversize paste, `503` token or `ANTHROPIC_API_KEY` not configured, `422` unreadable model output, `429` rate limited, `502` provider HTTP error, `500` other failures.
 
 ### `GET /paste`
 A small web page (`api/src/paste.html`) for the owner: enter the submit token once (kept in that browser), paste Slack messages, click Extract. It calls `/submit/bulk` with `source: "slack"`. Not linked from anywhere; `noindex`.
 
 ### `POST /submit`
-Turns pasted text (an email, a flyer's text) or a flyer photo into a stored event using an LLM.
+Turns pasted text (an email, a flyer's text) or a flyer photo into an event using an LLM. Only extracted event facts are stored; raw text/images and model-supplied people/metadata are discarded. New single submissions have null `description`/`source_url` and empty `people`.
 
-Body: `{ "text": "..." }` or `{ "image_base64": "<base64>", "media_type": "image/jpeg" }` (optionally both).
-Response: `{ "event": Event, "extracted": true|false }`. `extracted: false` means the model's output could not be parsed, so the event was stored with empty `companies`/`fields` and the first line of the text as its title.
-Needs the same `x-submit-token` as `/submit/bulk`. Errors: `401`/`503`/`429` as above, `422` if no title and start time could be found, and `503` if `ANTHROPIC_API_KEY` is not configured on the server (**currently not set**, so both submit endpoints return 503 until it is).
-Submitted events have `source: "user_submission"`. Body size limit is about 12 MB.
+Body: `{ "text": "..." }` or `{ "image_base64": "<base64>", "media_type": "image/jpeg" }` (optionally both). Supported image types: JPEG (default), PNG, GIF, WebP. Optional `dry_run: true` performs extraction without writing an event.
+Response: `{ "event": Event, "extracted": true }`; with `dry_run: true`, `{ "event": EventPreview, "extracted": true, "dry_run": true }` (same preview omissions as bulk). Invalid extraction returns `422` and never falls back to storing raw text.
+Needs the same token and shares the rate limit with `/submit/bulk`. Errors: `400` invalid input, `401`/`503`/`429` as above, `413` for bodies over about 12 MB, `422` if no valid title/start could be found, `502` provider HTTP error, `500` other failures. **`ANTHROPIC_API_KEY` is still absent**, so authenticated extraction tests remain blocked.
+New submitted events have `source: "user_submission"`, `verified: false`. Verified duplicates keep their verification, source, listing URL and existing description.
+
+See [`slack-setup.md`](./slack-setup.md) for secure configuration and public-text smoke tests with `dry_run: true`.
 
 ---
 
@@ -133,8 +135,8 @@ interface Event {
   fields: string[];           // lowercase career fields
   source: Source;
   source_url: string | null;  // link back to the original listing
-  description: string | null; // raw text, can be long, may contain stray whitespace
-  verified: boolean;          // false = unconfirmed (submitted by a person or read by an LLM, or a placeholder). Show an "Unconfirmed" badge or hide. True for every ingested source
+  description: string | null; // public listing text, extracted bulk summary, or null; never raw submitted messages
+  verified: boolean;          // false = unconfirmed (submissions, Slack or LLM extraction); true once a trusted public source confirms it
   people: EventPerson[];      // recruiters/alumni/speakers named on the listing; EMPTY for now (no source provides them yet)
   registration_url: string | null;      // sign-up link; null when no source has one (source_url is the listing page)
   rsvp_required: boolean | null;
@@ -238,7 +240,8 @@ Everything is normalized to the `Event` shape, deduped by `dedupe_hash`, and ups
 | `careerlaunch`, `cs_dept` (from the sheet) | **Live.** Refreshed on API boot and every 6 h (env `INGEST_SHEET_BASE` for auto-discovery, optional `INGEST_SHEET_URLS`). | `api/src/ingest-sheet.js` reads the BYU Career Services "Hiring & Networking Events (F2026)" Google Sheet, published as CSV, one tab per month (page: https://careers.byu.edu/hiring-and-networking-events). Rows are info sessions, tabling and hackathons with a named **company**, time, location and host. Each event is listed under several major groups (Engineering, "CS, IS, Math, Data...", Business, All Majors, ...), so duplicates are merged and the groups become `fields`. Host "BYU CS Department" sets `source=cs_dept`, everything else `careerlaunch`. Hackathon rows have no sponsor, so `companies` is empty. Unreadable rows are skipped and logged. **New month tabs are picked up automatically**: the server reads the published sheet's main page (`INGEST_SHEET_BASE` = `https://docs.google.com/spreadsheets/d/e/<id>`) to discover every tab's `gid` on each run (currently 4 tabs: September, October and two empty ones). If discovery ever breaks, list CSV links explicitly in `INGEST_SHEET_URLS`. |
 | `cs_dept` (department calendar) | **Live.** Refreshed on API boot and every 6 h (env `INGEST_CS`). | `api/src/ingest-cs.js` reads the listing at https://cs.byu.edu/department/event-calendar, follows each dated event page (`/<slug>-YYYY-MM-DD`), finds its `/_event.ics?e=<id>` link and parses the ICS (title, start/end, location, description). Sponsors are found by keyword against `KNOWN_COMPANIES` in the page text, so unfamiliar sponsor names are missed (add them to `classify.js`). The listing only exposes a few upcoming events, and some (e.g. the weekly seminar) are not linked from it. |
 | `rollins`, `clubs`, `byusa` | **Not built.** No events yet. Planned: Rollins Center (https://marriott.byu.edu/cet) and club pages via page text plus the LLM extraction step (needs `ANTHROPIC_API_KEY`). | |
-| `user_submission`, `email` | **Built, untested** (`POST /submit`). Blocked on `ANTHROPIC_API_KEY`. | LLM extraction, see `api/src/extract.js`. |
+| `slack` | **Built via owner paste flow; live extraction blocked on `ANTHROPIC_API_KEY`.** | Copy selected BYU IS jobs/internships and `a_team` event announcements into `/paste`, which calls `/submit/bulk`. The workspace blocks custom Slack apps, so there is no polling bot. Only extracted events/summary/public event link are stored; no raw messages or poster metadata. |
+| `user_submission`, `email` | **Built, locally tested** (`POST /submit` and `/submit/bulk`). Live extraction blocked on `ANTHROPIC_API_KEY`. | Single/bulk LLM extraction with `dry_run` previews; see `api/src/extract.js` and `submit.js`. No email connector; single submissions use `user_submission`. |
 | `handshake_manual` | Manual entry only. No scraping of Handshake or LinkedIn. | |
 | `byusa` | Not started. | |
 
@@ -287,6 +290,7 @@ Add a line to the changelog below for each change.
 
 ## Changelog
 
+- 2026-10-02: Preserved the Slack paste flow and submit-token protection while adding `dry_run` previews to both submission endpoints. Removed single-submission raw-text fallback/storage; allowlisted extracted fields for single/bulk rows, discarded people/metadata and private Slack/unsafe links, and kept LLM rows unverified. Provider errors are sanitized, submission error logs omit values, and auth headers are permitted by CORS. Upserts preserve trusted source attribution and missing optional descriptions/links. Added privacy, validation, preview and provider-error tests; live extraction still awaits the Anthropic key.
 - 2026-10-02: BYU IS Slack source, built for a workspace where custom apps are blocked: `POST /submit/bulk` (many events from a pasted dump) and the `/paste` page. Submit endpoints now require `SUBMIT_TOKEN` and are rate limited (they spend LLM credit); fail closed if the token is unset. New `slack` source value. Needs `ANTHROPIC_API_KEY` to actually extract (503 until set).
 - 2026-10-02: Front-end team's requests (see `docs/api-requests.md`): `/events` and `/recommendations` now include events still in progress; `verified` flag (false for submissions and unconfirmed rows); `companies` cleaned (deduped, alphabetical, matched-first in `/recommendations`, subtitles like "- Networking Readiness" stripped, graduate programs moved to new `programs`); new `people`, `registration_url`, `rsvp_required`, `registration_deadline` fields (empty until a source provides them; upserts only fill gaps); new `GET /events/:id`, `GET /events?ids=`, `GET /companies`. Upserts merge `verified` as "verified once any trusted source lists it".
 - 2026-10-02: Added the CS department source (`ingest-cs.js`: listing, event pages, per-event ICS) and automatic sheet tab discovery (the September tab added 5 events). BYU Calendar events are now classified using their `TagsNames` too. Removed the 16 fake placeholder seed events; the only seed left is the real Homecoming Hackathon with its sponsors. The live event count is now about 80 for Sep 1 to Dec 31.
