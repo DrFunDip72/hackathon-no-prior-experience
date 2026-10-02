@@ -8,6 +8,8 @@ const ALIASES = {
   'microsoft corporation': 'Microsoft',
   'adobe inc': 'Adobe',
   'domo inc': 'Domo',
+  'lucid software': 'Lucid',
+  'lucid software inc': 'Lucid',
   // Graduate programs listed under two spellings
   'duke university pratt school of engineering grad school': 'Duke Pratt School of Engineering',
   'duke university pratt school of engineering graduate school': 'Duke Pratt School of Engineering'

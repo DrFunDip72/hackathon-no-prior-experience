@@ -1,8 +1,8 @@
 import { createServer } from 'node:http';
-import { pool, queryEvents, queryEventsByIds, queryCompanies, upsertEvent } from './db.js';
+import { pool, queryEvents, queryEventsByIds, queryCompanies, upsertEvent, mergeNearDuplicates } from './db.js';
 import { recommend, DEFAULT_WINDOW_DAYS } from './scoring.js';
 import { readFileSync } from 'node:fs';
-import { submitEvent, submitBulk } from './submit.js';
+import { submitEvent, submitBulk, importEvents } from './submit.js';
 import { checkSubmitToken, createRateLimiter, clientIp } from './guard.js';
 import { ingestByu } from './ingest-byu.js';
 import { ingestSheets, discoverTabUrls } from './ingest-sheet.js';
@@ -83,6 +83,12 @@ const routes = {
     return submitBulk(await readJson(req), { save: upsertEvent });
   },
 
+  // Events that are already structured (e.g. transcribed from a calendar image). No AI involved.
+  'POST /events/import': async (req) => {
+    guardSubmit(req);
+    return importEvents(await readJson(req), { save: upsertEvent });
+  },
+
   'POST /submit': async (req) => {
     guardSubmit(req);
     return submitEvent(await readJson(req), { save: upsertEvent });
@@ -113,7 +119,9 @@ createServer(async (req, res) => {
 }).listen(PORT, () => console.log(`api listening on :${PORT}`));
 
 // Fix events stored before the current classifier (and drop non-career ones) before the ingests run.
-cleanByuEvents().catch((err) => console.error('byu clean-up failed:', err.message));
+cleanByuEvents()
+  .then(() => mergeNearDuplicates())
+  .catch((err) => console.error('event clean-up failed:', err.message));
 
 // Refresh from the BYU calendar on boot and then daily. Failures are logged, never fatal.
 if (process.env.INGEST_BYU) {

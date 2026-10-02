@@ -110,6 +110,11 @@ Body: `{ "text": "<pasted messages>", "source": "slack", "dry_run": false }` (`s
 ### `GET /paste`
 A small web page (`api/src/paste.html`) for the owner: enter the submit token once (kept in that browser), paste Slack messages, click Extract. It calls `/submit/bulk` with `source: "slack"`. Not linked from anywhere; `noindex`.
 
+### `POST /events/import`
+Saves events that are **already structured**, for example transcribed from a calendar image. No AI involved. Same protection as `/submit/bulk`: needs `x-submit-token`, rate limited.
+
+Body: `{ "events": [ { "title", "start", "end", "location", "type", "companies", "fields", "url", "description" } ], "source": "clubs", "verified": false, "dry_run": false }`. `start`/`end` are ISO with an offset or America/Denver wall time (`"2026-10-14 18:00"`). `source` is one of the Source values (default `user_submission`). Rows are **unverified unless `verified: true`**. At most 500 events per request. Only the listed fields are kept; links must be public (private Slack links are dropped); past events and rows without a title or date are skipped and reported. Response: `{ "saved", "skipped": [...], "events": Event[] }` (`dry_run: true` returns the events without saving). Re-importing is safe (events dedupe, see below).
+
 ### `POST /submit`
 Turns pasted text (an email, a flyer's text) or a flyer photo into an event using an LLM. Only extracted event facts are stored; raw text/images and model-supplied people/metadata are discarded. New single submissions have null `description`/`source_url` and empty `people`.
 
@@ -144,6 +149,7 @@ interface Event {
   rsvp_required: boolean | null;
   registration_deadline: string | null; // ISO, UTC
   dedupe_hash: string;        // sha256(lower(title) + local date + lower(location))
+  sources: Source[];          // every source that listed this event (merged near-duplicates have 2+); `source` is the primary one
   created_at: string;
   updated_at: string;
 }
@@ -292,6 +298,8 @@ Add a line to the changelog below for each change.
 
 ## Changelog
 
+- 2026-10-02: Added one event by hand from Handshake via `POST /events/import` (`source: handshake_manual`, verified): **2026 BYU Marriott Product Management Career Fair**, Wed Oct 21 2026, 6-8 PM MDT, in person in Provo, employers BambooHR, LeaderFactor and Lucid (only these three were visible on the page, so the list may be incomplete). Added the alias `Lucid Software` -> `Lucid` so students who target Lucid match it.
+- 2026-10-02: **Near-duplicate events are merged**, and `sources: Source[]` lists every source that listed an event. Two events are the same when they start within 30 minutes, are in the same place and their titles share 80% of their words after expanding abbreviations (Grad/Graduate, Info/Information, ...). Places match when the names match, one contains the other ("TNRB 2051" in "Tanner Building, TNRB 2051 (251)"), building abbreviations expand (WSC, TNRB, TMCB, HBLL, ...), or one is unknown/TBD. Merging happens on every upsert and once on boot for rows stored earlier: the merged row keeps one id (the oldest verified row's), unions companies/fields/sources, and a verified listing's title wins over an unverified one. The id of a merged-away duplicate stops existing (`GET /events?ids=` just omits unknown ids). Different events at the same time and place ("HXP Tabling" vs "HXP Info Session") stay separate, and so do sessions more than 30 minutes apart (the two Disney sessions an hour apart). New `POST /events/import` for already-structured events.
 - 2026-10-02: `/submit/bulk` now reads the standard weekly AIS events message with a plain parser (`api/src/weekly-dump.js`): no AI and no Anthropic key needed for that format, and `method` in the response says which path was used. Other text still falls back to the LLM.
 - 2026-10-02: Fixed wrong `product` tags on FHE/craft/dance events. Root cause: list fields were unioned on re-ingest, so a bad tag could never be removed, and the classifier read clock times ("7:30 PM") as "PM = product manager". Now: (1) the BYU calendar ingest **drops non-career events** (FHE / Family Home Evening, devotional, dance, craft night, game night, ward/stake activity, service project) unless they also look like a career event or name a known company; (2) keyword-classified sources replace their own `fields`/`companies` on re-ingest (a source only replaces rows it wrote itself; other sources' data still unions in); (3) on every boot the API deletes stored non-career BYU events and re-runs the classifier over stored BYU events and sponsor-less CS department events; (4) CS department events are classified from title + ICS description only (page text is used just to find sponsors). Tests include real-database checks (see `backend-handoff.md`).
 - 2026-10-02: Preserved the Slack paste flow and submit-token protection while adding `dry_run` previews to both submission endpoints. Removed single-submission raw-text fallback/storage; allowlisted extracted fields for single/bulk rows, discarded people/metadata and private Slack/unsafe links, and kept LLM rows unverified. Provider errors are sanitized, submission error logs omit values, and auth headers are permitted by CORS. Upserts preserve trusted source attribution and missing optional descriptions/links. Added privacy, validation, preview and provider-error tests; live extraction still awaits the Anthropic key.
