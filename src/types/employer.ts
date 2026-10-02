@@ -58,6 +58,15 @@ export interface EmployerQuery {
   lookingFor: string;
 }
 
+/** One saved search: a role the recruiter is hiring for, shown as a tab on /employer/matches. */
+export interface EmployerRole {
+  id: string;
+  /** ISO timestamp. */
+  createdAt: string;
+  /** The job the pool is ranked against; its jobTitle and companyName label the tab. */
+  query: EmployerQuery;
+}
+
 /** One weighted part of a fit score: `points` out of `max`, plus a plain-language reason. */
 export interface FitPart {
   key: 'skills' | 'role' | 'major' | 'academics' | 'interest' | 'experience' | 'timing';

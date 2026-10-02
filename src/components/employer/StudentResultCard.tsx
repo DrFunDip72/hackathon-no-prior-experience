@@ -7,11 +7,11 @@ import { matchLabel } from '../../utils/matching';
 import type { ScoredStudent } from '../../types/employer';
 
 /** One ranked student, in the same card language as an event row on the Events page. */
-export function StudentResultCard({ item, top }: {item: ScoredStudent;top?: boolean;}) {
+export function StudentResultCard({ item, top, roleId }: {item: ScoredStudent;top?: boolean;roleId: string;}) {
   const navigate = useNavigate();
   const { student, percent, why, matchedSkills } = item;
   const p = student.profile;
-  const href = `/employer/students/${student.id}`;
+  const href = `/employer/students/${student.id}?role=${roleId}`;
   const fit = matchLabel(percent, true);
 
   return (

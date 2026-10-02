@@ -38,14 +38,14 @@ export function AppHeader({ audience = 'student' }: {audience?: 'student' | 'emp
 
   const isEmployer = audience === 'employer';
   const employer = isEmployer ? employerStore.account() : null;
-  const showNav = isEmployer ? Boolean(employerStore.search()) : Boolean(state.profile);
+  const showNav = isEmployer ? Boolean(employer) || employerStore.roles().length > 0 : Boolean(state.profile);
   const nav = isEmployer ? employerNav : navItems;
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-8">
-          <Logo to={isEmployer ? '/employer' : showNav ? '/events' : '/'} />
+          <Logo to={isEmployer ? showNav ? '/employer/matches' : '/employer' : showNav ? '/events' : '/'} />
           {showNav &&
           <nav aria-label="Main" className={`items-center gap-1 ${isEmployer ? 'flex' : 'hidden sm:flex'}`}>
               {nav.map((item) =>

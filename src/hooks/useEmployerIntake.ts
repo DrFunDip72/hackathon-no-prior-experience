@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { employerStepsFor, type EmployerStepId } from '../data/employerSteps';
 import { readJobSource, stripDataUrl } from '../utils/jobReader';
-import { employerStore } from '../utils/employerStore';
+import { employerStore, matchesHref } from '../utils/employerStore';
 import { splitList } from '../utils/text';
 import type { InitialValue } from './useOnboarding';
 import type { Answer, SourceSubmission } from '../types/onboarding';
@@ -33,6 +33,7 @@ export function useEmployerIntake() {
   const [pasted, setPasted] = useState(false);
   const [editing, setEditing] = useState<EmployerStepId | null>(null);
   const [phase, setPhase] = useState<'chat' | 'building' | 'account'>('chat');
+  const roleIdRef = useRef<string | null>(null);
 
   const steps = employerStepsFor(extract, answers.title?.value);
   const openIndex = steps.findIndex((s) => !answers[s.id]);
@@ -110,15 +111,17 @@ export function useEmployerIntake() {
     setAnswers({});
   };
 
-  /** Search saved: land on the ranked students. */
+  /** Role saved: land on its tab of ranked students. */
   const finish = () => {
-    navigate('/employer/matches', { replace: true });
+    navigate(matchesHref(roleIdRef.current), { replace: true });
     toast.success('Here are your matches', { description: 'Students who opted in, ranked by fit for this role.' });
   };
 
   const build = async () => {
     setPhase('building');
-    employerStore.saveSearch(query);
+    // Back from the account step and built again: replace this intake's role rather than adding a second tab.
+    if (roleIdRef.current) employerStore.removeRole(roleIdRef.current);
+    roleIdRef.current = employerStore.addRole(query).id;
     await wait(1000);
     // Already has a recruiter account in this browser: straight to the matches, as a signed-in student goes to events.
     if (employerStore.account()) finish();else

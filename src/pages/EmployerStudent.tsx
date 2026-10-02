@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeftIcon, EyeOffIcon } from 'lucide-react';
 import { AppHeader } from '../components/AppHeader';
 import { FitPanel } from '../components/employer/FitPanel';
@@ -13,7 +13,7 @@ import { SkillsSection } from '../components/profile/SkillsSection';
 import { InterestsSection } from '../components/profile/InterestsSection';
 import { mockStudents } from '../data/mockStudents';
 import { scoreStudent } from '../utils/employerMatching';
-import { employerStore } from '../utils/employerStore';
+import { employerStore, matchesHref, NEW_ROLE } from '../utils/employerStore';
 import { reachOutHref } from '../utils/reachOut';
 import { firstName } from '../utils/text';
 
@@ -23,14 +23,19 @@ const readOnly = async () => {};
 export function EmployerStudent() {
   const { id } = useParams();
   const student = mockStudents.find((s) => s.id === id);
-  const query = employerStore.search();
+  const [params] = useSearchParams();
+  // The role this profile is scored against: the tab it was opened from, else the last one open.
+  const role = employerStore.role(params.get('role')) ?? employerStore.activeRole();
+  const query = role?.query ?? null;
+  // Signed up but every role removed: add one inline rather than repeating the full sign-up.
+  const describeHref = employerStore.account() ? matchesHref(NEW_ROLE) : '/employer';
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
 
   const back =
   <Link
-    to={query ? '/employer/matches' : '/employer'}
+    to={role ? matchesHref(role.id) : describeHref}
     className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors duration-150 hover:text-ink">
 
       <ArrowLeftIcon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -55,7 +60,7 @@ export function EmployerStudent() {
   }
 
   const fit = query ? scoreStudent(student, query) : null;
-  const role = query ? [query.jobTitle || 'your role', query.companyName].filter(Boolean).join(' at ') : '';
+  const roleName = query ? [query.jobTitle || 'your role', query.companyName].filter(Boolean).join(' at ') : '';
   const sectionProps = { profile: student.profile, editable: false, onSave: readOnly };
 
   return (
@@ -78,10 +83,10 @@ export function EmployerStudent() {
 
           <aside className="order-1 space-y-4 lg:sticky lg:top-20 lg:order-2 lg:self-start">
             {fit && query ?
-            <FitPanel item={fit} role={role} mailto={reachOutHref(fit, query, employerStore.account())} /> :
+            <FitPanel item={fit} role={roleName} mailto={reachOutHref(fit, query, employerStore.account())} /> :
 
             <section className="rounded-xl border border-line bg-white p-5 text-sm text-muted">
-                <Link to="/employer" className="font-medium text-navy hover:underline">
+                <Link to={describeHref} className="font-medium text-navy hover:underline">
                   Describe a role
                 </Link>{' '}
                 to see how well {firstName(student.profile.name)} fits it.
