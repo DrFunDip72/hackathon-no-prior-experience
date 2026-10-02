@@ -29,6 +29,10 @@ const FIELD_RULES = [
 // FHE activity doesn't get tagged "product" alongside every genuine product-management event.
 const TIME_OF_DAY_RE = /\b\d{1,2}([:.]\d{2})?\s*([ap])\.?\s?m\.?\b/gi;
 
+// Campus social events that share the calendar with career events. They are dropped at ingest, not tagged.
+const NON_CAREER_RE = /\bFHE\b|family home evening|devotional|\bdance\b|craft night|game night|\bward\b|\bstake\b|service project/i;
+const CAREER_TYPES = ['career_fair', 'info_session', 'hackathon', 'case_competition', 'networking', 'tabling'];
+
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export function classify(title, description = '') {
@@ -38,4 +42,12 @@ export function classify(title, description = '') {
   const companies = KNOWN_COMPANIES.filter((c) => new RegExp(`\\b${escape(c)}\\b`, 'i').test(text));
   const fields = FIELD_RULES.filter(([, re]) => re.test(fieldText)).map(([f]) => f);
   return { type, companies, fields };
+}
+
+// True for FHE nights, craft nights, dances, devotionals and similar. An event that also looks like a career event
+// (a career-type keyword or a known company) is kept, so "Career Fair after the dance" is not lost.
+export function isNonCareerEvent(title, description = '') {
+  if (!NON_CAREER_RE.test(`${title} ${description}`)) return false;
+  const { type, companies } = classify(title, description);
+  return !CAREER_TYPES.includes(type) && companies.length === 0;
 }

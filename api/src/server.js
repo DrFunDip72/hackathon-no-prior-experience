@@ -7,6 +7,7 @@ import { checkSubmitToken, createRateLimiter, clientIp } from './guard.js';
 import { ingestByu } from './ingest-byu.js';
 import { ingestSheets, discoverTabUrls } from './ingest-sheet.js';
 import { ingestCs } from './ingest-cs.js';
+import { cleanByuEvents } from './backfill.js';
 
 const DAY_MS = 86_400_000;
 const PORT = process.env.PORT ?? 3000;
@@ -110,6 +111,9 @@ createServer(async (req, res) => {
     send(res, err.status ?? 500, { error: err.status ? err.message : 'internal error' });
   }
 }).listen(PORT, () => console.log(`api listening on :${PORT}`));
+
+// Fix events stored before the current classifier (and drop non-career ones) before the ingests run.
+cleanByuEvents().catch((err) => console.error('byu clean-up failed:', err.message));
 
 // Refresh from the BYU calendar on boot and then daily. Failures are logged, never fatal.
 if (process.env.INGEST_BYU) {
