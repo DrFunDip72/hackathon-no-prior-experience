@@ -6,7 +6,8 @@ import type { Profile } from '../types/profile';
 /**
  * The sample pool of BYU students for the employer demo. There is no real student directory yet (each
  * student's profile lives only in their own browser), so this stands in for one; see docs/api-requests.md.
- * Everyone here is fictional, and emails use the reserved byu.example domain so nothing reaches a real inbox.
+ * Everyone here is fictional except Will Holland, a teammate who agreed to be in the demo pool. Emails use the
+ * reserved byu.example domain so nothing reaches a real inbox.
  */
 
 /** "Maya O'Neil" -> "maya.o.neil" with sep '.' */
@@ -21,8 +22,9 @@ function toProfile(seed: StudentSeed): Profile {
     summary: seed.summary,
     year: seed.year,
     handshakeUrl: '',
-    // Sample students are fictional, so no LinkedIn link: a made-up profile URL would open a dead page in a demo.
-    linkedinUrl: '',
+    // Fictional students have no LinkedIn link (a made-up URL would open a dead page in a demo); only a real
+    // teammate who shared his has one.
+    linkedinUrl: seed.linkedinUrl ?? '',
     resumeFileName: null,
     resumeDataUrl: null,
     lookingFor: {
