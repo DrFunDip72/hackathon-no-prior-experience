@@ -110,6 +110,26 @@ export function Events() {
               `${feed.total} upcoming events ranked by how well they fit your profile${
               feed.hiddenCount ? ` · ${feed.hiddenCount} off-topic hidden` : ''}`}
             </p>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <a
+                href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(`webcal://${window.location.host}/calendar.ics`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-3.5 py-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas">
+                <GoogleIcon className="h-4 w-4" />
+                Subscribe in Google Calendar
+              </a>
+              <button
+                type="button"
+                onClick={() =>
+                navigator.clipboard.writeText(`${window.location.origin}/calendar.ics`).then(
+                  () => toast.success('Calendar link copied', { description: 'Paste it into Apple Calendar or Outlook.' }),
+                  () => toast.error('Could not copy the link')
+                )}
+                className="text-sm font-medium text-navy hover:underline">
+                Copy link
+              </button>
+            </div>
           </div>
           <div role="tablist" aria-label="Event lists" className="flex rounded-lg bg-white p-0.5 ring-1 ring-line">
             {([

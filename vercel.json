@@ -5,7 +5,11 @@
   "outputDirectory": "dist",
   "functions": {
     "api/parse-resume.ts": { "maxDuration": 60 },
-    "api/rank-events.ts": { "maxDuration": 30 }
+    "api/rank-events.ts": { "maxDuration": 30 },
+    "api/calendar.ts": { "maxDuration": 15 }
   },
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/calendar.ics", "destination": "/api/calendar" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
 }

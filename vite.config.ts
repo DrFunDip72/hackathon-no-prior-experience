@@ -9,6 +9,11 @@ function localApi(): Plugin {
   return {
     name: 'local-api',
     configureServer(server) {
+      // Same as the vercel.json rewrite: the calendar feed's public URL is /calendar.ics
+      server.middlewares.use((req, _res, next) => {
+        if (req.url?.split('?')[0] === '/calendar.ics') req.url = '/api/calendar'
+        next()
+      })
       server.middlewares.use('/api', async (req, res) => {
         try {
           const route = (req.url ?? '/').split('?')[0].replace(/^\/+/, '')
