@@ -33,15 +33,17 @@ export function Onboarding() {
   const bgParam = params.get('bg');
   const bg = isHeroBackgroundVariant(bgParam) ? bgParam : undefined;
 
-  // Keep the newest message and the composer in view whenever the conversation moves on. The sentinel's
-  // scroll margin is the pinned composer's height, so the latest question never ends up underneath it.
+  // Keep the newest message (or, while editing, the answer being edited) and the composer in view whenever the
+  // conversation moves on. The target's scroll margin is the pinned composer's height, so it never ends up underneath it.
   const scrollKey = [answeredSteps.length, ob.activeStep?.id, ob.editing, ob.complete, Object.keys(ob.draft.notes ?? {}).length].join('|');
   useEffect(() => {
-    const end = endRef.current;
-    if (ob.phase !== 'chat' || !end) return;
+    const target = ob.editing ? document.getElementById(`step-${ob.editing}`) : endRef.current;
+    if (ob.phase !== 'chat' || !target) return;
     // Runs after commit, so the new composer is in the DOM and its height is final.
-    end.style.scrollMarginBottom = `${(composerRef.current?.offsetHeight ?? 0) + COMPOSER_GAP}px`;
-    end.scrollIntoView({ behavior: firstScroll.current || reduceMotion ? 'auto' : 'smooth', block: 'end' });
+    target.style.scrollMarginBottom = `${(composerRef.current?.offsetHeight ?? 0) + COMPOSER_GAP}px`;
+    // A hidden tab (e.g. the student switched away during a resume read) never runs a smooth scroll, so jump instead.
+    const instant = firstScroll.current || reduceMotion || document.hidden;
+    target.scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'end' });
     firstScroll.current = false;
   }, [scrollKey, ob.phase, reduceMotion]);
 
@@ -138,7 +140,7 @@ export function Onboarding() {
           {answeredSteps.map((step) => {
             const note = ob.draft.notes?.[step.id];
             return (
-              <div key={step.id} className="space-y-3">
+              <div key={step.id} id={`step-${step.id}`} className="space-y-3">
                 <ChatBubble role="assistant">{step.prompt}</ChatBubble>
                 <ChatBubble role="user" onEdit={() => ob.setEditing(step.id)} isEditing={ob.editing === step.id}>
                   {renderAnswer(step)}
