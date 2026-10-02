@@ -10,6 +10,7 @@ export interface AttendedEvent {
   title: string;
   /** The company that hosted or sponsored it, if any. Cross-referenced against the employer's company name. */
   company: string | null;
+  /** ISO date, "2026-09-15". */
   date: string;
 }
 
@@ -25,8 +26,8 @@ export interface StudentSeed {
   id: string;
   name: string;
   major: string;
+  /** The class year; the graduation year is derived from it (gradYearFor), so the two never disagree. */
   year: 'Freshman' | 'Sophomore' | 'Junior' | 'Senior';
-  gradYear: string;
   gpa: string;
   headline: string;
   summary: string;

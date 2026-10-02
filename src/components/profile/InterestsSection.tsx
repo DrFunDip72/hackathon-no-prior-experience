@@ -19,7 +19,8 @@ export function InterestsSection({ profile, editable, onSave }: SectionProps) {
   return (
     <SectionCard
       title="Interests"
-      description="Used to rank events and people for you"
+      // Read-only is how a recruiter sees it (and the student's employer preview): say what it means for them.
+      description={editable ? 'Used to rank events and people for you' : 'Where they want to work'}
       editable={editable}
       editing={ed.editing}
       saving={ed.saving}

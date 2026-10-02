@@ -1,4 +1,5 @@
 import { studentSeeds } from './studentSeeds';
+import { gradYearFor } from '../utils/profileBuilder';
 import type { PoolStudent, StudentSeed } from '../types/employer';
 import type { Profile } from '../types/profile';
 
@@ -38,7 +39,7 @@ function toProfile(seed: StudentSeed): Profile {
       school: 'Brigham Young University',
       degree: 'BS',
       major: seed.major,
-      gradYear: seed.gradYear,
+      gradYear: gradYearFor(seed.year),
       gpa: seed.gpa,
       coursework: seed.coursework
     },

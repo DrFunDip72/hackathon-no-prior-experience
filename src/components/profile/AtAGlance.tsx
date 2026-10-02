@@ -53,7 +53,7 @@ export function AtAGlance({ profile, editable, onSave }: SectionProps) {
     <SectionCard
       id="profile-glance"
       title="At a glance"
-      description="What recruiters check first"
+      description={editable ? 'What recruiters check first' : 'What they’re looking for'}
       editable={editable}
       editing={ed.editing}
       saving={ed.saving}

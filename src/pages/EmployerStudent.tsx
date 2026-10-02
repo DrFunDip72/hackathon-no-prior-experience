@@ -12,7 +12,8 @@ import { EducationSection } from '../components/profile/EducationSection';
 import { SkillsSection } from '../components/profile/SkillsSection';
 import { InterestsSection } from '../components/profile/InterestsSection';
 import { mockStudents } from '../data/mockStudents';
-import { scoreStudent } from '../utils/employerMatching';
+import { EventEngagement } from '../components/employer/EventEngagement';
+import { eventEngagement, scoreStudent } from '../utils/employerMatching';
 import { employerStore, matchesHref, NEW_ROLE } from '../utils/employerStore';
 import { reachOutHref } from '../utils/reachOut';
 import { firstName } from '../utils/text';
@@ -69,9 +70,40 @@ export function EmployerStudent() {
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         {back}
-        <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_300px]">
-          <div className="order-2 min-w-0 space-y-4 lg:order-1">
+        {/*
+          Phone: who the student is (header), then their fit, then the rest of the profile.
+          Desktop: the profile on the left, the fit panel pinned on the right across both rows.
+         */}
+        <div className="mt-4 grid gap-x-6 gap-y-4 lg:grid-cols-[1fr_320px] lg:grid-rows-[auto_1fr]">
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             <ProfileHeader {...sectionProps} />
+          </div>
+          {/*
+            Pinned only within the viewport: below the sticky AppHeader (top-20) and never taller than what's left of
+            the screen, scrolling inside itself when the panel is longer. Without the max height, a pinned panel taller
+            than the viewport hides its bottom until the whole page has scrolled past.
+           */}
+          <aside className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-6rem)] lg:self-start lg:overflow-y-auto lg:rounded-xl">
+            {fit && query ?
+            <FitPanel item={fit} role={roleName} mailto={reachOutHref(fit, query, employerStore.account())}>
+                <EventEngagement engagement={eventEngagement(student, query.companyName)} company={query.companyName.trim()} />
+              </FitPanel> :
+
+            <>
+                <section className="rounded-xl border border-line bg-white p-5 text-sm text-muted">
+                  <Link to={describeHref} className="font-medium text-navy hover:underline">
+                    Describe a role
+                  </Link>{' '}
+                  to see how well {firstName(student.profile.name)} fits it.
+                </section>
+                <section className="rounded-xl border border-line bg-white p-5">
+                  <EventEngagement engagement={eventEngagement(student, '')} company="" />
+                </section>
+              </>
+            }
+          </aside>
+
+          <div className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-2">
             <AtAGlance {...sectionProps} />
             <AboutSection {...sectionProps} />
             <ExperienceSection {...sectionProps} />
@@ -80,19 +112,6 @@ export function EmployerStudent() {
             <SkillsSection {...sectionProps} />
             <InterestsSection {...sectionProps} />
           </div>
-
-          <aside className="order-1 space-y-4 lg:sticky lg:top-20 lg:order-2 lg:self-start">
-            {fit && query ?
-            <FitPanel item={fit} role={roleName} mailto={reachOutHref(fit, query, employerStore.account())} /> :
-
-            <section className="rounded-xl border border-line bg-white p-5 text-sm text-muted">
-                <Link to={describeHref} className="font-medium text-navy hover:underline">
-                  Describe a role
-                </Link>{' '}
-                to see how well {firstName(student.profile.name)} fits it.
-              </section>
-            }
-          </aside>
         </div>
       </main>
     </div>);

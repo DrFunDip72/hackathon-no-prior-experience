@@ -46,7 +46,7 @@ export function ExperienceSection({ profile, editable, onSave }: SectionProps) {
     <SectionCard
       id="profile-experience"
       title="Experience"
-      description="Results first, with the skills each role proves"
+      description={editable ? 'Results first, with the skills each role proves' : undefined}
       editable={editable}
       editing={ed.editing}
       saving={ed.saving}

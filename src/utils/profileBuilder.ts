@@ -11,7 +11,8 @@ import { capitalize, containsWord, newId, splitList, unique } from './text';
 const YEARS = ['freshman', 'sophomore', 'junior', 'senior', 'graduate', 'alumni'];
 const INDUSTRY_NAMES = new Set(industries.map((i) => i.name));
 
-function gradYearFor(year: string): string {
+/** "Senior" -> the class it graduates with this school year (Aug–Jul), e.g. 2027 in Oct 2026. */
+export function gradYearFor(year: string): string {
   const now = new Date();
   const base = now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
   const offsets: Record<string, number> = { Senior: 0, Graduate: 0, Junior: 1, Sophomore: 2, Freshman: 3 };
