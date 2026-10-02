@@ -25,6 +25,8 @@ export interface PoolStudent {
 export interface StudentSeed {
   id: string;
   name: string;
+  /** Only for a real student who shared it (with consent); fictional students leave it out. */
+  linkedinUrl?: string;
   major: string;
   /** The class year; the graduation year is derived from it (gradYearFor), so the two never disagree. */
   year: 'Freshman' | 'Sophomore' | 'Junior' | 'Senior';

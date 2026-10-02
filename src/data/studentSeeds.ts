@@ -2,7 +2,8 @@ import type { AttendedEvent, StudentSeed } from '../types/employer';
 
 /**
  * Sample Fall 2026 events the sample students went to, for the employer demo's "Event engagement" view.
- * Fictional records: Wasatch Labs is the made-up company in sample-profile/sample-job-posting.pdf, and real
+ * Fictional records: Wasatch Labs and Alpine Loop Software are the made-up companies in
+ * sample-profile/sample-job-posting.pdf and sample-job-posting-apm.pdf, and real
  * company names are only used as plausible hosts. `company: null` is a general career event.
  */
 const ev = (title: string, company: string | null, date: string): AttendedEvent => ({ title, company, date });
@@ -36,6 +37,10 @@ const EV = {
   wasatchCoffee: ev('Coffee Chat with Wasatch Labs PMs', 'Wasatch Labs', '2026-09-10'),
   wasatchCase: ev('Wasatch Labs PM Case Workshop', 'Wasatch Labs', '2026-09-17'),
   wasatchDemo: ev('Wasatch Labs Product Demo Day', 'Wasatch Labs', '2026-09-30'),
+  alpineInfo: ev('Alpine Loop Product Info Session', 'Alpine Loop Software', '2026-08-27'),
+  alpineTalk: ev('Alpine Loop Tech Talk: AI Agents for IT Teams', 'Alpine Loop Software', '2026-09-15'),
+  alpineCase: ev('Alpine Loop PM Case Night', 'Alpine Loop Software', '2026-09-24'),
+  alpineCoffee: ev('Coffee Chat with the Alpine Loop Product Team', 'Alpine Loop Software', '2026-10-01'),
   podiumInfo: ev('Podium Info Session', 'Podium', '2026-09-09'),
   podiumShowcase: ev('Marketing Lab Showcase', 'Podium', '2026-09-22'),
   deloitteInfo: ev('Deloitte Audit Info Session', 'Deloitte', '2026-09-17'),
@@ -47,8 +52,85 @@ const EV = {
   northropInfo: ev('Northrop Grumman Engineering Info Session', 'Northrop Grumman', '2026-09-14')
 } satisfies Record<string, AttendedEvent>;
 
-/** Sample BYU students for the employer demo. All names, emails and links are fictional. */
+/**
+ * Sample BYU students for the employer demo. All names, emails and links are fictional, except Will Holland: a
+ * teammate who agreed to be in the pool. His entry uses only professional details from his resume and LinkedIn,
+ * a byu.example email, and sample event attendance like everyone else's.
+ */
 export const studentSeeds: StudentSeed[] = [
+  {
+    id: 'stu_will_holland',
+    name: 'Will Holland',
+    linkedinUrl: 'https://www.linkedin.com/in/willhollanddev/',
+    major: 'Information Systems',
+    // Graduates December 2026, so he is in this school year's graduating class.
+    year: 'Senior',
+    gpa: '3.64',
+    headline: 'IT and AI consultant who implements systems and automates workflows',
+    summary:
+      'I am an Information Systems senior and IT consultant who specializes in implementing new systems. I gather requirements with clients, roll out tools like Microsoft Intune across hundreds of devices, and automate the manual work with Python, C# and AI agents. I also build and ship my own apps for BYU students.',
+    roles: ['Product manager', 'Consultant', 'Software engineer'],
+    employmentType: 'Full-time',
+    startDate: 'January 2027',
+    locations: ['Provo, UT', 'Lehi, UT', 'Salt Lake City, UT'],
+    topSkills: ['Requirements gathering', 'Technology implementation', 'Process automation', 'Microsoft Intune', 'AI agents', 'Python'],
+    skillGroups: [
+      { label: 'Consulting', skills: ['Requirements gathering', 'Technology implementation', 'Client support', 'Process automation', 'Troubleshooting'] },
+      { label: 'Microsoft cloud', skills: ['Microsoft Intune', 'Entra ID', 'Microsoft 365', 'Conditional Access', 'Defender', 'PowerShell'] },
+      { label: 'AI & automation', skills: ['LLM APIs', 'AI agents', 'n8n', 'Workflow automation'] },
+      { label: 'Code', skills: ['Python', 'C#', 'TypeScript', 'React Native', 'REST APIs', 'SQL', 'PostgreSQL', 'Docker'] },
+    ],
+    experience: [
+      {
+        title: 'MDM Implementation Intern',
+        org: 'Thatcher Company',
+        start: 'Jun 2026',
+        end: 'Aug 2026',
+        impact: [
+          'Rolled out Microsoft Intune to 300+ Windows devices and 200+ Android endpoints: Autopilot and Zero Touch enrollment, compliance and security policies, update rings and the company portal.',
+          'Supported enterprise endpoint management and identity infrastructure in Intune and Entra ID.',
+        ],
+        skills: ['Microsoft Intune', 'Entra ID', 'Technology implementation', 'Requirements gathering'],
+      },
+      {
+        title: 'IT Consultant',
+        org: 'NetworkPC',
+        start: 'Jul 2024',
+        end: 'Present',
+        impact: [
+          'Consult directly with 5 small-business clients to diagnose issues, implement infrastructure and improve reliability.',
+          'Deploy and maintain virtualized environments in remote data centers, and manage client Microsoft 365 tenants through Microsoft Graph.',
+        ],
+        skills: ['Requirements gathering', 'Client support', 'Microsoft 365', 'Technology implementation'],
+      },
+      {
+        title: 'VDC Automation Intern',
+        org: 'Okland Construction',
+        start: 'Jun 2024',
+        end: 'Nov 2024',
+        impact: ['Built Python programs and C# plugins for Navisworks and Revit that cut manual processing time 80%.'],
+        skills: ['Python', 'C#', 'Process automation'],
+      },
+      {
+        title: 'Help Desk Technician',
+        org: 'BYU Library IT',
+        start: 'Jan 2025',
+        end: 'Present',
+        impact: ['Support 2,000+ Windows and macOS computers for students, faculty and staff, including imaging and deploying new systems.'],
+        skills: ['Troubleshooting', 'Client support'],
+      },
+    ],
+    projects: [
+      { name: 'FreeRoomFinder', description: 'Finds unoccupied BYU classrooms for any day and time window, for a quiet study space or a group meeting.', skills: ['Python', 'SQL', 'JavaScript'] },
+      { name: 'VibeSec Pleiades', description: 'Security scanner, built at a hackathon, that audits GitHub repos for leaked secrets, exposed environment variables and vulnerable dependencies.', skills: ['Python', 'LLM APIs'] },
+      { name: 'Homelab Server', description: 'Self-hosted Ubuntu server running Docker services for speech-to-text and an Ollama-backed study-notes app, served over Tailscale.', skills: ['Docker', 'AI agents', 'Python'] },
+    ],
+    coursework: ['IS 303 Introduction to Business Programming', 'IS 401 Systems Analysis and Design', 'IS 402 Database Systems', 'IS 403 Web Development'],
+    industries: ['Software', 'Consulting'],
+    companies: ['Microsoft'],
+    visible: true,
+    attendedEvents: [EV.alpineInfo, EV.alpineTalk, EV.alpineCase, EV.alpineCoffee, EV.wasatchInfo, EV.wasatchCase, EV.wasatchDemo, EV.pmPanel, EV.careerFair],
+  },
   {
     id: 'stu_maya_chen',
     name: 'Maya Chen',
