@@ -64,7 +64,7 @@
       });
       const data = await res.json();
       if (!res.ok) return line('bad', data.error || 'Something went wrong (' + res.status + ')');
-      line('ok', 'Saved ' + data.saved + ' event' + (data.saved === 1 ? '' : 's') + '.');
+      line('ok', 'Saved ' + data.saved + ' event' + (data.saved === 1 ? '' : 's') + '.', data.method === 'format' ? 'Read from the standard weekly format. No AI was used and nothing left the server.' : 'Read with AI.');
       for (const e of data.events) {
         line('', e.title, new Date(e.start_at).toLocaleString('en-US', { timeZone: 'America/Denver', dateStyle: 'medium', timeStyle: 'short' }) + (e.location ? ' · ' + e.location : '') + (e.companies.length ? ' · ' + e.companies.join(', ') : ''));
       }

@@ -1,5 +1,6 @@
 import { extractEvent, buildSubmissionRow, extractEvents, buildBulkRows } from './extract.js';
 import { SOURCES } from './event.js';
+import { parseWeeklyDump } from './weekly-dump.js';
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
@@ -33,11 +34,16 @@ export async function submitBulk(body, { save, extract = extractEvents, now = ne
     throw fail(400, 'send { text } with the pasted messages; dry_run must be a boolean');
   }
   if (text.length > 200_000) throw fail(413, 'paste is too long; split it into chunks of about 200,000 characters');
-  const list = await extract({ text, now });
+  // The weekly AIS message has a fixed layout, so it is read directly: no AI, no API key, nothing leaves the server.
+  // Anything else goes to the model.
+  const dump = parseWeeklyDump(text, { now });
+  const method = dump.events.length ? 'format' : 'llm';
+  const list = method === 'format' ? dump.events : await extract({ text, now });
   if (!list) throw fail(422, 'could not read events from the model output; try again');
-  const { rows, skipped } = buildBulkRows(list, { source: SOURCES.includes(source) ? source : 'user_submission', now });
-  if (dryRun) return { saved: 0, skipped, events: rows, dry_run: true };
+  const built = buildBulkRows(list, { source: SOURCES.includes(source) ? source : 'user_submission', now });
+  const skipped = [...(method === 'format' ? dump.skipped : []), ...built.skipped];
+  if (dryRun) return { saved: 0, skipped, events: built.rows, dry_run: true, method };
   const events = [];
-  for (const row of rows) events.push(await save(row));
-  return { saved: events.length, skipped, events };
+  for (const row of built.rows) events.push(await save(row));
+  return { saved: events.length, skipped, events, method };
 }
