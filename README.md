@@ -12,6 +12,7 @@ Hackathon project for the **Improving the job hunt** challenge. Doorway pulls sc
 
 It is a clickable walkthrough with sample data. There is no sign-in, and nothing leaves your browser.
 
+- **Live:** https://doorway-gray.vercel.app (redeploys on every push to `main`)
 - **Locally:** double-click `index.html`, or run `python -m http.server` in this folder and open http://localhost:8000.
 - **Fastest path:** click **Try the demo** on the landing page to load a sample student, then explore **Your week**.
 
