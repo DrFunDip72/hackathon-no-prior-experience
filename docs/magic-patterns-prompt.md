@@ -43,7 +43,9 @@ Question sequence:
 6. "What matters most in a team?" Multi-select chips: Ownership, Learning fast, Mission, Work-life balance, Pay, Collaboration.
 7. "Want employers to be able to find your profile?" Chips: Yes, Not yet. Add a one-line explanation that they can change this any time.
 
-After the last answer show a short "Building your profile…" state (about 1.5 seconds), then an account step: **Continue with Google** and **Continue with email** (both are mock buttons for now), plus an optional profile photo upload. Then go to `/profile?welcome=1`.
+After the last answer show a short "Building your profile…" state (about 1.5 seconds), then go straight to `/profile?welcome=1`.
+
+**There is no sign-in, no account creation and no authentication anywhere in this app.** This is a clickable walkthrough: nothing leaves the browser, and the chat answers are saved only in `localStorage` so the next screens can show them. Do not add Google, email or password buttons.
 
 Show a gentle success message on `/profile?welcome=1`: "That was it. You're set."
 
