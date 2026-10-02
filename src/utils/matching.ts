@@ -111,8 +111,10 @@ export function scoreEvent(event: CampusEvent, profile: Profile, terms: ProfileT
     event,
     start,
     end,
-    score: Math.min(98, raw),
-    reasons: unique([...companyHits.map((e) => e.name), ...tagHits, ...industryHits]).slice(0, 3),
+    // API events arrive pre-ranked; the API score tops out near 30, so scale it to a percentage.
+    score: event.apiScore !== undefined ? Math.min(99, Math.round(event.apiScore * 3)) : Math.min(98, raw),
+    reasons: event.apiReasons ?? unique([...companyHits.map((e) => e.name), ...tagHits, ...industryHits]).slice(0, 3),
+    reason: event.apiReason,
     conflict: checkConflicts ? findConflict(start, end)?.title ?? null : null,
     employers: eventEmployers,
     people: scoredPeople

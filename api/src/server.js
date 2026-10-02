@@ -1,0 +1,93 @@
+import { createServer } from 'node:http';
+import { pool, queryEvents, upsertEvent } from './db.js';
+import { recommend, DEFAULT_WINDOW_DAYS } from './scoring.js';
+import { extractEvent, buildSubmissionRow } from './extract.js';
+import { ingestByu } from './ingest-byu.js';
+
+const DAY_MS = 86_400_000;
+const PORT = process.env.PORT ?? 3000;
+
+const fail = (status, message) => Object.assign(new Error(message), { status });
+
+const send = (res, status, body) => {
+  res.writeHead(status, {
+    'content-type': 'application/json',
+    'access-control-allow-origin': '*',
+    'access-control-allow-headers': 'content-type',
+    'access-control-allow-methods': 'GET,POST,OPTIONS'
+  });
+  res.end(JSON.stringify(body));
+};
+
+async function readJson(req) {
+  let raw = '';
+  for await (const chunk of req) {
+    raw += chunk;
+    if (raw.length > 12_000_000) throw fail(413, 'body too large');
+  }
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    throw fail(400, 'invalid JSON');
+  }
+}
+
+// from/to default to today through 21 days out.
+function dateWindow({ from, to }) {
+  const start = from ? new Date(from) : new Date();
+  const end = to ? new Date(to) : new Date(start.getTime() + DEFAULT_WINDOW_DAYS * DAY_MS);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) throw fail(400, 'invalid from/to date');
+  return { start, end };
+}
+
+const routes = {
+  'GET /health': async () => {
+    await pool.query('select 1');
+    return { ok: true };
+  },
+
+  'GET /events': async (req, url) => {
+    const { start, end } = dateWindow({ from: url.searchParams.get('from'), to: url.searchParams.get('to') });
+    return queryEvents({ from: start, to: end, company: url.searchParams.get('company') });
+  },
+
+  'POST /recommendations': async (req) => {
+    const { from, to, relevant_only: relevantOnly, ...profile } = await readJson(req);
+    if (!Array.isArray(profile.target_companies)) throw fail(400, 'profile.target_companies is required');
+    const { start, end } = dateWindow({ from, to });
+    return recommend(await queryEvents({ from: start, to: end }), profile, { from: start, to: end, relevantOnly: Boolean(relevantOnly) });
+  },
+
+  'POST /submit': async (req) => {
+    const { text, image_base64: imageBase64, media_type: mediaType } = await readJson(req);
+    if (!text && !imageBase64) throw fail(400, 'send { text } or { image_base64 }');
+    const extracted = await extractEvent({ text, imageBase64, mediaType });
+    let row;
+    try {
+      row = buildSubmissionRow(extracted, text);
+    } catch (err) {
+      throw fail(422, `could not find a title and start time: ${err.message}`);
+    }
+    return { event: await upsertEvent(row), extracted: Boolean(extracted) };
+  }
+};
+
+createServer(async (req, res) => {
+  if (req.method === 'OPTIONS') return send(res, 204, {});
+  const url = new URL(req.url, 'http://localhost');
+  const handler = routes[`${req.method} ${url.pathname}`];
+  if (!handler) return send(res, 404, { error: 'not found' });
+  try {
+    send(res, 200, await handler(req, url));
+  } catch (err) {
+    if (!err.status) console.error(err);
+    send(res, err.status ?? 500, { error: err.status ? err.message : 'internal error' });
+  }
+}).listen(PORT, () => console.log(`api listening on :${PORT}`));
+
+// Refresh from the BYU calendar on boot and then daily. Failures are logged, never fatal.
+if (process.env.INGEST_BYU) {
+  const run = () => ingestByu(30).catch((err) => console.error('byu ingest failed:', err.message));
+  run();
+  setInterval(run, DAY_MS);
+}

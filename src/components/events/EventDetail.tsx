@@ -49,7 +49,7 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
           <span className="text-sm text-muted">match</span>
         </div>
         <p className="mt-1 text-sm text-ink">
-          {item.reasons.length ? `Fits your interest in ${item.reasons.join(', ')}.` : 'A general campus event, worth it for broad networking.'}
+          {item.reason ? item.reason : item.reasons.length ? `Fits your interest in ${item.reasons.join(', ')}.` : 'A general campus event, worth it for broad networking.'}
         </p>
 
         <section className="mt-6" aria-labelledby="day-heading">

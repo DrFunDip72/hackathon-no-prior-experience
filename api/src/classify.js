@@ -1,0 +1,35 @@
+// Keyword fallback for type/companies/fields, used when no LLM is in the loop (e.g. the BYU calendar ingest).
+// Cheap and conservative: only names companies from KNOWN_COMPANIES, never guesses.
+export const KNOWN_COMPANIES = [
+  'Redo', 'Neighbor', 'Waystar', 'Qualtrics', 'Adobe', 'Domo', 'Microsoft', 'Lucid', 'Podium', 'Entrata',
+  'Instructure', 'Google', 'Amazon', 'Meta', 'Apple', 'Deloitte', 'Goldman Sachs', 'Nu Skin', 'Northrop Grumman',
+  'Ancestry', 'Pluralsight', 'Vivint', 'Overstock', 'Health Catalyst', 'Intel', 'Nvidia', 'Oracle', 'Salesforce'
+];
+
+const TYPE_RULES = [
+  ['hackathon', /hackathon|hack-a-thon/i],
+  ['career_fair', /career (fair|expo)|job fair|internship fair/i],
+  ['case_competition', /case (competition|challenge)/i],
+  ['info_session', /info(rmation)? session|recruiting (event|session)|employer (panel|session)/i],
+  ['networking', /networking|recruiting dinner|meet (the|and greet)|alumni panel/i],
+  ['tabling', /tabling|office hours/i],
+  ['lecture', /lecture|speaker|seminar|tech talk|colloquium|devotional/i]
+];
+
+const FIELD_RULES = [
+  ['software engineering', /software|engineer|programming|coding|hackathon|developer/i],
+  ['data', /\bdata\b|analytics|machine learning|\bai\b|statistics/i],
+  ['product', /product (management|manager|design)|\bpm\b|\bux\b/i],
+  ['consulting', /consulting|case interview/i],
+  ['finance', /finance|investment|banking/i]
+];
+
+const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export function classify(title, description = '') {
+  const text = `${title} ${description}`;
+  const type = TYPE_RULES.find(([, re]) => re.test(text))?.[0] ?? 'other';
+  const companies = KNOWN_COMPANIES.filter((c) => new RegExp(`\\b${escape(c)}\\b`, 'i').test(text));
+  const fields = FIELD_RULES.filter(([, re]) => re.test(text)).map(([f]) => f);
+  return { type, companies, fields };
+}

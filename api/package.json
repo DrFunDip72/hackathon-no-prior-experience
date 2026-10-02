@@ -1,0 +1,17 @@
+{
+  "name": "doorway-api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/migrate.js && ([ -z \"$SEED_ON_START\" ] || node src/seed.js) && node src/server.js",
+    "migrate": "node src/migrate.js",
+    "seed": "node src/seed.js",
+    "ingest:byu": "node -e \"import('./src/ingest-byu.js').then(m => m.ingestByu(30)).then(() => process.exit())\"",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}

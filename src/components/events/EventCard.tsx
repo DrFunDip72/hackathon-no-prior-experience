@@ -17,6 +17,7 @@ interface EventCardProps {
 }
 
 function whyLine(item: ScoredEvent): string {
+  if (item.reason) return item.reason;
   return item.reasons.length ? `Matches ${item.reasons.join(', ')}` : 'Open campus event, good for general networking';
 }
 

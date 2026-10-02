@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { calendarSources } from '../data/calendarSources';
 import { api } from '../utils/api';
+import { API_URL, fetchRecommendedEvents } from '../utils/backend';
 import { daysFromToday } from '../utils/dates';
 import { getProfileTerms, scoreEvent } from '../utils/matching';
 import { unique } from '../utils/text';
@@ -34,8 +35,7 @@ export function useEventFeed() {
     let alive = true;
     setError(false);
     setRaw(null);
-    api.
-    fetchEvents().
+    (API_URL ? fetchRecommendedEvents(profile) : api.fetchEvents()).
     then((result) => alive && setRaw(result)).
     catch(() => alive && setError(true));
     return () => {

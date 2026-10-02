@@ -2,6 +2,10 @@ import { addDays, differenceInCalendarDays, format, startOfDay } from 'date-fns'
 import type { CampusEvent } from '../types/event';
 
 export function getEventTimes(event: CampusEvent): {start: Date;end: Date;} {
+  if (event.startAt) {
+    const start = new Date(event.startAt);
+    return { start, end: new Date(start.getTime() + event.durationMin * 60000) };
+  }
   let day = addDays(startOfDay(new Date()), event.dayOffset);
   if (day.getDay() === 0) day = addDays(day, 1); // no Sunday events at BYU
   const [hours, minutes] = event.startTime.split(':').map(Number);

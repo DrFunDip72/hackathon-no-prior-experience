@@ -22,6 +22,11 @@ export interface CampusEvent {
   industries: string[];
   employerIds: string[];
   attendeeIds: string[];
+  /** Set when the event came from the real API: exact start time and its ranking. */
+  startAt?: string;
+  apiScore?: number;
+  apiReasons?: string[];
+  apiReason?: string;
 }
 
 export interface Employer {
@@ -67,6 +72,8 @@ export interface ScoredEvent {
   end: Date;
   score: number;
   reasons: string[];
+  /** Full sentence explaining the match, when the API provided one. */
+  reason?: string;
   conflict: string | null;
   employers: Employer[];
   people: ScoredPerson[];
