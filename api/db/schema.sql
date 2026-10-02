@@ -25,6 +25,8 @@ alter table events add column if not exists people jsonb not null default '[]';
 alter table events add column if not exists registration_url text;
 alter table events add column if not exists rsvp_required boolean;
 alter table events add column if not exists registration_deadline timestamptz;
+alter table events add column if not exists sources text[] not null default '{}';
+update events set sources = array[source] where sources = '{}';
 
 create table if not exists companies (
   name text primary key,

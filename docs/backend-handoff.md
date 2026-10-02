@@ -25,7 +25,7 @@ Hackathon context: one-day build, favor working end to end, keep changes minimal
 | Keyword tagging (type, companies, fields) | `api/src/classify.js` (`KNOWN_COMPANIES` is where new employers go) |
 | LLM extraction for `/submit` | `api/src/extract.js` |
 | Seed data | `api/src/seed-events.js`, `seed-companies.js`, `seed.js` |
-| Tests | `api/test/*.test.js`, run `cd api && npm test` (45 tests; 5 of them need a database) |
+| Tests | `api/test/*.test.js`, run `cd api && npm test` (60 tests; 10 of them need a database) |
 | Front-end adapter | `src/utils/backend.ts`, `src/hooks/useEventFeed.ts` |
 
 Note: `api/parse-resume.ts` is the front end's Vercel function (resume parsing with Gemini). It shares the `api/` folder with this backend by accident of history; `.vercelignore` keeps the backend files out of Vercel. Don't move either without updating that file.
@@ -66,7 +66,7 @@ There is no CI for the API: deploys are manual with the command above. Commit an
 - API live. ~80 events for Sep-Dec 2026, all from real sources: BYU calendar (~50 per 30 days, mostly `other`), career-services sheet (Sep + Oct tabs, ~22 events, company-named info sessions and tabling), CS department (3 events including the Homecoming Hackathon with Redo/Neighbor/Waystar sponsors).
 - The demo path works: a profile targeting Redo gets the Homecoming Hackathon (Fri Oct 2, ESC Annex, 8 AM-8 PM) first, with a reason string.
 - Done from the front-end wishlist: in-progress events, `verified`, cleaned `companies` plus `programs`, `GET /events/:id`, `GET /events?ids=`, `GET /companies`. See the status table in `api-requests.md`.
-- 45 tests passing (5 need `TEST_DATABASE_URL`, see below), including including single/bulk extraction privacy, validation, no-write previews and provider error handling. Providers and database writes are mocked; no local database integration tests.
+- 60 tests passing (10 need `TEST_DATABASE_URL`, see below), including single/bulk extraction privacy, validation, no-write previews and provider error handling. Providers and database writes are mocked; no local database integration tests.
 - Both submission endpoints support `dry_run: true` for fake/public text or image smoke tests without storing events. Raw text/images and model-supplied people/metadata are discarded; bulk keeps only the extracted event summary and a public event link. Live extraction remains blocked on the owner's Anthropic key. See `docs/slack-setup.md`.
 
 ## Not done / next steps (rough priority)
@@ -86,7 +86,7 @@ There is no CI for the API: deploys are manual with the command above. Commit an
 - **Hackathon sponsors** come from the seed (`seed-events.js`), because the sheet lists none. Keep curated facts there.
 - **The BYU calendar API caps at ~100 events per response**, so the ingest asks one week at a time. It works from Railway (some datacenter IPs get a CloudFront 403; Railway's doesn't).
 - **Windows line endings:** Git on Windows converts to CRLF, which can break multi-line string replacements in scripts. Prefer editing files with your editor tools.
-- **Database tests:** `npm test` skips the 5 real-database tests unless `TEST_DATABASE_URL` points at a throwaway Postgres (never production). To run them locally: start any Postgres (for example `initdb -D /tmp/pg -U postgres -A trust`, then `pg_ctl -D /tmp/pg -o "-p 54329" start`, then `createdb -h localhost -p 54329 -U postgres doorway_test`), then run `TEST_DATABASE_URL=postgres://postgres@localhost:54329/doorway_test npm test`. The tests drop and recreate the `events` and `companies` tables.
+- **Database tests:** `npm test` skips the 10 real-database tests unless `TEST_DATABASE_URL` points at a throwaway Postgres (never production). To run them locally: start any Postgres (for example `initdb -D /tmp/pg -U postgres -A trust`, then `pg_ctl -D /tmp/pg -o "-p 54329" start`, then `createdb -h localhost -p 54329 -U postgres doorway_test`), then run `TEST_DATABASE_URL=postgres://postgres@localhost:54329/doorway_test npm test`. The tests drop and recreate the `events` and `companies` tables, which is why `npm test` runs test files one at a time (`--test-concurrency=1`); do not point it at a shared database.
 - **Regex in generated code:** when writing regexes through a script, check the result (`\b` has been turned into a backspace character once). `npm test` plus `node --check` catches it.
 - **Don't put secrets in the repo or in chat.** Set keys with `railway variables`.
 - **Browser policy:** the original author's work environment blocked some sites in tooling (`calendar.byu.edu`, `cs.byu.edu`, `docs.google.com`, the Vercel front end). Nothing in the deployed system depends on that; it only limited what could be inspected during development.

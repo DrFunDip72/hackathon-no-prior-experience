@@ -120,12 +120,13 @@ function publicEventUrl(value) {
 
 // Extracted items -> upsert-ready rows. Past events and unreadable items are reported, not stored.
 // The model's summary is stored instead of the raw text, so poster names and chatter never reach the database.
-export function buildBulkRows(list, { source = 'user_submission', now = new Date() } = {}) {
+export function buildBulkRows(list, { source = 'user_submission', now = new Date(), verified = false } = {}) {
   const rows = [];
   const skipped = [];
   for (const e of list) {
     try {
       const row = buildSubmissionRow(e, source);
+      row.verified = verified;
       row.registration_url = publicEventUrl(e.url);
       row.description = typeof e.description === 'string' ? e.description.trim() || null : null;
       if (new Date(row.end_at ?? row.start_at) < new Date(now.getTime() - 86_400_000)) skipped.push(`${row.title}: already past`);

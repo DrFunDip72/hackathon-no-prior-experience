@@ -47,3 +47,19 @@ export async function submitBulk(body, { save, extract = extractEvents, now = ne
   for (const row of built.rows) events.push(await save(row));
   return { saved: events.length, skipped, events, method };
 }
+
+// Events someone has already structured (for example transcribed from a calendar image): no model involved.
+// Same row rules as bulk extraction (allowlisted fields, public links only): past events are skipped and bad rows are
+// reported. Rows are unverified unless the caller says otherwise.
+export async function importEvents(body, { save, now = new Date() }) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw fail(400, 'send a JSON object');
+  const { events: list, source, dry_run: dryRun = false, verified = false } = body;
+  if (!Array.isArray(list) || list.length === 0) throw fail(400, 'send { events: [...] } with at least one event');
+  if (list.length > 500) throw fail(413, 'too many events; send at most 500 per request');
+  if (typeof dryRun !== 'boolean' || typeof verified !== 'boolean') throw fail(400, 'dry_run and verified must be booleans');
+  const built = buildBulkRows(list, { source: SOURCES.includes(source) ? source : 'user_submission', now, verified });
+  if (dryRun) return { saved: 0, skipped: built.skipped, events: built.rows, dry_run: true };
+  const events = [];
+  for (const row of built.rows) events.push(await save(row));
+  return { saved: events.length, skipped: built.skipped, events };
+}
