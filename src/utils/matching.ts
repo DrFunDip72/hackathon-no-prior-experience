@@ -1,6 +1,5 @@
 import { employers } from '../data/employers';
 import { people } from '../data/people';
-import { schedule } from '../data/schedule';
 import type { CampusEvent, Employer, Person, ScheduleBlock, ScoredEvent, ScoredPerson } from '../types/event';
 import type { Profile } from '../types/profile';
 import { campusParts, getEventTimes, toMinutes } from './dates';
@@ -133,7 +132,7 @@ export function isHiddenFromFeed(item: ScoredEvent): boolean {
 }
 
 /** Class schedule blocks are campus wall-clock times, so compare in campus time. */
-export function findConflict(start: Date, end: Date): ScheduleBlock | null {
+export function findConflict(schedule: ScheduleBlock[], start: Date, end: Date): ScheduleBlock | null {
   const { weekday, hour, minute } = campusParts(start);
   const startMin = hour * 60 + minute;
   const endMin = startMin + (end.getTime() - start.getTime()) / 60000;
@@ -142,14 +141,15 @@ export function findConflict(start: Date, end: Date): ScheduleBlock | null {
 
 }
 
-export function scheduleForDay(date: Date): ScheduleBlock[] {
+export function scheduleForDay(schedule: ScheduleBlock[], date: Date): ScheduleBlock[] {
   const { weekday } = campusParts(date);
   return schedule.
   filter((b) => b.days.includes(weekday)).
   sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
 }
 
-export function scoreEvent(event: CampusEvent, profile: Profile, terms: ProfileTerms, checkConflicts: boolean): ScoredEvent {
+/** `schedule` is the student's calendar to check conflicts against, or null when none is connected. */
+export function scoreEvent(event: CampusEvent, profile: Profile, terms: ProfileTerms, schedule: ScheduleBlock[] | null): ScoredEvent {
   const { start, end } = getEventTimes(event);
   const eventEmployers = event.employerIds.
   map((id) => employers.find((e) => e.id === id)).
@@ -192,7 +192,7 @@ export function scoreEvent(event: CampusEvent, profile: Profile, terms: ProfileT
     reason: event.apiReason,
     targetCompanies: unique([...companyHits.map((e) => e.name), ...apiCompanyNames]),
     matchedFields: event.apiReasons ? event.apiReasons.filter((r) => !isEventCompany(r)) : unique([...tagHits, ...industryHits]),
-    conflict: checkConflicts ? findConflict(start, end)?.title ?? null : null,
+    conflict: schedule ? findConflict(schedule, start, end)?.title ?? null : null,
     employers: eventEmployers,
     people: scoredPeople
   };

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '../contexts/SessionContext';
 import { calendarSources } from '../data/calendarSources';
+import { buildSchedule } from '../data/schedule';
 import { api } from '../utils/api';
 import { API_URL, fetchEventsByIds, fetchRecommendedEvents, toApiProfile } from '../utils/backend';
 import { daysFromToday } from '../utils/dates';
@@ -124,6 +125,8 @@ export function useEventFeed() {
   }, [missingKey]);
 
   const googleConnected = Boolean(state.connections.google);
+  // Google Calendar is a preview: a sample week built from the student's major and target role.
+  const schedule = useMemo(() => googleConnected ? buildSchedule(profile) : null, [googleConnected, profile]);
   // Only live sources narrow the feed: someone who connected a "soon" source (Clubs, Athletics) earlier
   // would otherwise get an empty feed, since no events come from it yet.
   const connectedSources = calendarSources.
@@ -138,11 +141,11 @@ export function useEventFeed() {
     const terms = getProfileTerms(profile);
     const now = new Date();
     const scored = raw.
-    map((e) => scoreEvent(e, profile, terms, googleConnected)).
+    map((e) => scoreEvent(e, profile, terms, schedule)).
     filter((e) => e.end > now);
     // API results arrive ranked best-first; keep that order. Only sample data is ranked here.
     return API_URL ? scored : scored.sort((a, b) => b.score - a.score);
-  }, [raw, profile, googleConnected]);
+  }, [raw, profile, schedule]);
 
   const aiScores = useAiScores(profile, apiScored);
 
@@ -164,8 +167,8 @@ export function useEventFeed() {
   const savedScored = useMemo(() => {
     const terms = getProfileTerms(profile);
     const now = new Date();
-    return saved.map((e) => scoreEvent(e, profile, terms, googleConnected)).filter((e) => e.end > now);
-  }, [saved, profile, googleConnected]);
+    return saved.map((e) => scoreEvent(e, profile, terms, schedule)).filter((e) => e.end > now);
+  }, [saved, profile, schedule]);
 
   const fromSources = useMemo(
     () => allScored.filter((s) => showingAllSources || connectedSources.includes(s.event.sourceId)),
@@ -225,6 +228,7 @@ export function useEventFeed() {
     filtersActive,
     availableIndustries,
     googleConnected,
+    schedule,
     connectedSources,
     showingAllSources
   };

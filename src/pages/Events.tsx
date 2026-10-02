@@ -89,7 +89,7 @@ export function Events() {
   <EventDetail
     item={selected}
     added={added.has(selected.event.id)}
-    googleConnected={feed.googleConnected}
+    schedule={feed.schedule}
     onAdd={() => markAdded(selected.event.id)}
     onRemove={() => remove(selected.event.id)}
     onClose={isDesktop ? undefined : () => setSheetOpen(false)} />;

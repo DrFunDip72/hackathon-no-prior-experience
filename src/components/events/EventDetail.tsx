@@ -8,20 +8,22 @@ import { PersonRow } from './PersonRow';
 import { EmployerLogo } from '../ui/EmployerLogo';
 import { campusTime, formatDay, formatClock, formatTimeRange, toMinutes } from '../../utils/dates';
 import { eventMatch, scheduleForDay } from '../../utils/matching';
-import type { ScoredEvent } from '../../types/event';
+import type { ScheduleBlock, ScoredEvent } from '../../types/event';
 
 interface EventDetailProps {
   item: ScoredEvent;
   added: boolean;
-  googleConnected: boolean;
+  /** The connected (preview) Google Calendar, or null when not connected. */
+  schedule: ScheduleBlock[] | null;
   onAdd: () => void;
   onRemove: () => void;
   onClose?: () => void;
 }
 
-export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onClose }: EventDetailProps) {
+export function EventDetail({ item, added, schedule, onAdd, onRemove, onClose }: EventDetailProps) {
   const { event } = item;
-  const day = scheduleForDay(item.start);
+  const googleConnected = schedule !== null;
+  const day = schedule ? scheduleForDay(schedule, item.start) : [];
   const match = eventMatch(item);
 
   return (
@@ -65,7 +67,7 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
         <section className="mt-6" aria-labelledby="day-heading">
           <h3 id="day-heading" className="text-sm font-semibold text-ink">
             Your day
-            {googleConnected && <span className="ml-1.5 text-xs font-normal text-muted">Preview · sample class schedule</span>}
+            {googleConnected && <span className="ml-1.5 text-xs font-normal text-muted">Preview · sample schedule for your major</span>}
           </h3>
           {googleConnected ?
           <ul className="mt-2 space-y-1.5">

@@ -54,7 +54,7 @@ export function ConsentDialog({ source, onAllow, onCancel }: ConsentDialogProps)
               Try it with a sample schedule
             </h2>
             <p id="consent-body" className="mt-1 text-sm text-muted">
-              Real Google Calendar sync is coming. For now, Doorway uses a sample student schedule (classes and a campus job) to
+              Real Google Calendar sync is coming. For now, Doorway builds a sample week from your profile (classes for your major and a campus job) to
               show what conflict checking looks like.
             </p>
 
