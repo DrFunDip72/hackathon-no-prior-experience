@@ -39,6 +39,14 @@ export function scoreStudent(student: MockStudent, query: EmployerQuery): Scored
     reasons.push(`Attended ${attended.title} (${attended.company}) on campus`);
   }
 
+  // 5. Both sides want the same employment type (internship/full-time/part-time), or the employer's open to any.
+  const employmentHit =
+  query.employmentType && query.employmentType !== 'Either' && student.employmentType === query.employmentType;
+  if (employmentHit) {
+    raw += 10;
+    reasons.push(`Also looking for ${student.employmentType.toLowerCase()}`);
+  }
+
   return { student, score: raw > 0 ? Math.min(99, raw) : 0, reasons: unique(reasons) };
 }
 

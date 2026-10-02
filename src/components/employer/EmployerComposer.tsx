@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowUpIcon } from 'lucide-react';
 import type { EmployerStep } from '../../data/employerSteps';
 
 interface EmployerComposerProps {
   step: EmployerStep;
-  /** Pre-filled recommended text for this step, or '' when there's nothing to suggest (e.g. company name). */
+  /** Pre-filled recommended text for a text step, or the previously chosen option when editing a choice step. '' means no suggestion exists. */
   initial: string;
   isEditing: boolean;
   onSubmit: (value: string) => void;
@@ -13,22 +13,53 @@ interface EmployerComposerProps {
 }
 
 /**
- * Same interaction as the student onboarding composer (src/components/onboarding/Composer.tsx): a
- * suggested answer is pre-filled rather than left as a placeholder, so accepting it is one keystroke.
- * Own copy, not imported -- that file is owned by a parallel session.
+ * Same interactions as the student onboarding composer (src/components/onboarding/Composer.tsx): a
+ * 'choice' step is click-to-select buttons that answer instantly; a 'text' step pre-fills a suggested
+ * answer rather than leaving it as a placeholder, so accepting it is one keystroke. Own copy, not
+ * imported -- that file is owned by a parallel session.
  *
- * Accepts the suggestion (or whatever's been typed) on Enter *or* Tab, so tabbing through the form
- * confirms each field and advances instead of just moving focus off it.
+ * New here: quick-fill chips on a text step autofill the field on click (still editable before
+ * sending), and Tab (not just Enter) accepts a field's text and advances.
  */
 export function EmployerComposer({ step, initial, isEditing, onSubmit, onSkip, onCancelEdit }: EmployerComposerProps) {
-  const [value, setValue] = useState(initial);
+  const [value, setValue] = useState(step.kind === 'text' ? initial : '');
   const [error, setError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  if (step.kind === 'choice') {
+    return (
+      <div className="rounded-2xl border border-line bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.12)]">
+        {isEditing &&
+        <div className="mb-2 flex items-center justify-between rounded-lg bg-navy-50 px-3 py-1.5 text-xs text-navy">
+            <span className="font-medium">Editing your answer</span>
+            <button type="button" onClick={onCancelEdit} className="hover:underline">
+              Cancel
+            </button>
+          </div>
+        }
+        <div className="flex flex-wrap gap-2 p-1" role="group" aria-label={step.prompt}>
+          {step.options.map((option) =>
+          <button
+            key={option}
+            type="button"
+            onClick={() => onSubmit(option)}
+            className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors duration-150 ${
+            option === initial ? 'border-navy bg-navy-50 text-navy' : 'border-line text-ink hover:border-navy-200 hover:bg-canvas'}`
+            }>
+
+              {option}
+            </button>
+          )}
+        </div>
+      </div>);
+
+  }
 
   const submit = () => {
     const v = value.trim();
     if (!v) {
       if (step.optional) return onSkip();
-      setError('Type an answer, or press Tab to use the example.');
+      setError(step.chips ? 'Type an answer, or click one of the options below.' : 'Type an answer, or press Tab to use the example.');
       return;
     }
     onSubmit(v);
@@ -70,6 +101,7 @@ export function EmployerComposer({ step, initial, isEditing, onSubmit, onSkip, o
           {step.prompt}
         </label>
         <textarea
+          ref={textareaRef}
           id={`employer-answer-${step.id}`}
           autoFocus
           rows={step.multiline ? 3 : 1}
@@ -92,6 +124,29 @@ export function EmployerComposer({ step, initial, isEditing, onSubmit, onSkip, o
         </button>
       </form>
 
+      {step.chips &&
+      <div className="flex flex-wrap gap-1.5 px-1 pt-2">
+          {step.chips.map((chip) =>
+        <button
+          key={chip}
+          type="button"
+          onClick={() => {
+            setValue(chip);
+            setError(null);
+            // Clicking a chip shouldn't strand focus on the chip itself -- back to the field, so
+            // Tab/Enter immediately send what was just filled in instead of cycling to the next chip.
+            textareaRef.current?.focus();
+          }}
+          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-150 ${
+          value === chip ? 'border-navy bg-navy-50 text-navy' : 'border-line text-muted hover:border-navy-200 hover:text-ink'}`
+          }>
+
+            {chip}
+          </button>
+        )}
+        </div>
+      }
+
       <div className="mt-1 flex min-h-[28px] items-center justify-between gap-3 px-1">
         {error ?
         <p role="alert" className="text-xs text-danger">
@@ -99,7 +154,11 @@ export function EmployerComposer({ step, initial, isEditing, onSubmit, onSkip, o
           </p> :
 
         <span className="text-xs text-muted">
-            {wasSuggested ? 'Example filled in. Press Enter or Tab to use it, or edit it first.' : 'Enter or Tab to send'}
+            {wasSuggested ?
+          'Example filled in. Press Enter or Tab to use it, or edit it first.' :
+          step.chips ?
+          'Click an option to fill it in, or type your own. Enter or Tab to send.' :
+          'Enter or Tab to send'}
           </span>
         }
         {step.optional &&

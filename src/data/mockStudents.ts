@@ -15,6 +15,7 @@ export const mockStudents: MockStudent[] = [
   skills: ['React', 'TypeScript', 'Python', 'SQL', 'Node.js', 'REST APIs'],
   targetCompanies: ['Redo', 'Neighbor', 'Qualtrics'],
   targetTitle: 'Software Engineer',
+  employmentType: 'Internship',
   attendedEvents: [
   { title: 'Homecoming Hackathon', company: 'Redo', date: 'Oct 2' },
   { title: 'Startup Career Fair', company: 'Neighbor', date: 'Oct 15' }]
@@ -29,6 +30,7 @@ export const mockStudents: MockStudent[] = [
   skills: ['Product management', 'UX research', 'Figma', 'SQL', 'Roadmapping'],
   targetCompanies: ['Podium', 'Qualtrics', 'Domo'],
   targetTitle: 'Product Manager',
+  employmentType: 'Internship',
   attendedEvents: [
   { title: 'Qualtrics Product Night', company: 'Qualtrics', date: 'Oct 5' },
   { title: 'PM Panel: Breaking into Product', company: null, date: 'Sep 29' }]
@@ -43,6 +45,7 @@ export const mockStudents: MockStudent[] = [
   skills: ['Go', 'Python', 'Postgres', 'Docker', 'System design'],
   targetCompanies: ['Qualtrics', 'Domo', 'Microsoft'],
   targetTitle: 'Backend Engineer',
+  employmentType: 'Internship',
   attendedEvents: [
   { title: 'Homecoming Hackathon', company: 'Waystar', date: 'Oct 2' }]
 
@@ -56,6 +59,7 @@ export const mockStudents: MockStudent[] = [
   skills: ['Growth marketing', 'SQL', 'A/B testing', 'Email lifecycle', 'Analytics'],
   targetCompanies: ['Adobe', 'Domo', 'Podium'],
   targetTitle: 'Marketing Associate',
+  employmentType: 'Internship',
   attendedEvents: [
   { title: 'Adobe Info Session', company: 'Adobe', date: 'Oct 8' }]
 
@@ -69,6 +73,7 @@ export const mockStudents: MockStudent[] = [
   skills: ['Financial modeling', 'Valuation', 'Excel', 'DCF', 'Pitch decks'],
   targetCompanies: ['Goldman Sachs', 'Ensign Peak Advisors'],
   targetTitle: 'Investment Banking Analyst',
+  employmentType: 'Full-time',
   attendedEvents: [
   { title: 'Goldman Sachs Recruiting Dinner', company: 'Goldman Sachs', date: 'Oct 10' }]
 
@@ -82,6 +87,7 @@ export const mockStudents: MockStudent[] = [
   skills: ['Python', 'Machine learning', 'Pandas', 'SQL', 'Statistics'],
   targetCompanies: ['Domo', 'Ancestry', 'Qualtrics'],
   targetTitle: 'Data Scientist',
+  employmentType: 'Internship',
   attendedEvents: [
   { title: 'Data & Analytics Mixer', company: 'Domo', date: 'Oct 12' },
   { title: 'Homecoming Hackathon', company: 'Neighbor', date: 'Oct 2' }]
@@ -96,6 +102,7 @@ export const mockStudents: MockStudent[] = [
   skills: ['Project scheduling', 'Cost estimation', 'Bluebeam', 'Procore'],
   targetCompanies: ['Layton Construction'],
   targetTitle: 'Project Engineer',
+  employmentType: 'Full-time',
   attendedEvents: [
   { title: 'Construction Career Night', company: 'Layton Construction', date: 'Oct 9' }]
 
@@ -109,6 +116,7 @@ export const mockStudents: MockStudent[] = [
   skills: ['Figma', 'UX design', 'Prototyping', 'Design systems', 'User research'],
   targetCompanies: ['Adobe', 'Lucid', 'Podium'],
   targetTitle: 'Product Designer',
+  employmentType: 'Internship',
   attendedEvents: [
   { title: 'Design Week Portfolio Review', company: null, date: 'Oct 6' }]
 
@@ -122,6 +130,7 @@ export const mockStudents: MockStudent[] = [
   skills: ['Security', 'Go', 'React', 'TypeScript', 'OAuth'],
   targetCompanies: ['Redo', 'Microsoft'],
   targetTitle: 'Software Engineer',
+  employmentType: 'Full-time',
   attendedEvents: [
   { title: 'Homecoming Hackathon', company: 'Redo', date: 'Oct 2' }]
 
@@ -135,6 +144,7 @@ export const mockStudents: MockStudent[] = [
   skills: ['Health policy', 'Data analysis', 'SQL', 'Public speaking'],
   targetCompanies: ['Waystar', 'Larry H. Miller Senior Health'],
   targetTitle: 'Healthcare Operations Analyst',
+  employmentType: 'Internship',
   attendedEvents: [
   { title: 'Homecoming Hackathon', company: 'Waystar', date: 'Oct 2' }]
 

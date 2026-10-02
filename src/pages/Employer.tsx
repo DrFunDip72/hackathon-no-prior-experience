@@ -9,7 +9,7 @@ import { StudentResultCard } from '../components/employer/StudentResultCard';
 import { employerSteps } from '../data/employerSteps';
 import { mockStudents } from '../data/mockStudents';
 import { rankStudents } from '../utils/employerMatching';
-import type { EmployerStepId } from '../data/employerSteps';
+import type { EmployerStep, EmployerStepId } from '../data/employerSteps';
 import type { EmployerQuery } from '../types/employer';
 
 type Phase = 'chat' | 'building' | 'results';
@@ -52,11 +52,14 @@ export function Employer() {
     if (activeStep) record(activeStep.id, '', editing !== null);
   };
 
-  const initialFor = (step: typeof employerSteps[number]): string => answers[step.id] ?? step.suggested;
+  // A choice step has no suggestion to prefill; `initial` there just highlights the previous
+  // answer when editing.
+  const initialFor = (step: EmployerStep): string => answers[step.id] ?? (step.kind === 'text' ? step.suggested : '');
 
   const query: EmployerQuery = {
     companyName: answers.company ?? '',
     jobTitle: answers.title ?? '',
+    employmentType: (answers.employmentType as EmployerQuery['employmentType']) ?? '',
     lookingFor: answers.lookingFor ?? '',
     jobDescription: answers.description ?? ''
   };

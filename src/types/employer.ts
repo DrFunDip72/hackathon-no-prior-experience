@@ -23,6 +23,8 @@ export interface MockStudent {
   targetCompanies: string[];
   /** The job title/role type this student is looking for. */
   targetTitle: string;
+  /** What this student wants, mirroring the employer-side question. */
+  employmentType: 'Internship' | 'Full-time' | 'Part-time';
   /** Events this student clicked "Add to calendar" for. */
   attendedEvents: MockAttendedEvent[];
 }
@@ -30,6 +32,7 @@ export interface MockStudent {
 export interface EmployerQuery {
   companyName: string;
   jobTitle: string;
+  employmentType: 'Internship' | 'Full-time' | 'Part-time' | 'Either' | '';
   /** Free text: what the employer is looking for in a candidate. */
   lookingFor: string;
   /** Pasted company/job description. */
