@@ -7,7 +7,8 @@
  * matching misses. One Gemini call per request: the profile and every event in one batch.
  *
  * Body:
- *   { profile: RankProfile, events: [{ id, text, companies? }] }   (1 to 98 events)
+ *   { profile: RankProfile, events: [{ id, text, companies?, fields? }] }   (1 to 98 events)
+ *   fields are the events API's topic tags ("software engineering", "product"), used for the role boost
  * Responses:
  *   200 { scores: [{ id, percent }] }   percent is 0 to 99, see toPercent below
  *   400 bad input · 403 request from another website · 429 Gemini rate limited
@@ -64,7 +65,7 @@ type RankProfile = z.infer<typeof ProfileSchema>;
 const BodySchema = z.object({
   profile: ProfileSchema,
   events: z
-    .array(z.object({ id: z.string().min(1).max(100), text: z.string().max(4000), companies: list(30, 120) }))
+    .array(z.object({ id: z.string().min(1).max(100), text: z.string().max(4000), companies: list(30, 120), fields: list(20) }))
     .min(1)
     .max(MAX_EVENTS)
 });
@@ -110,16 +111,27 @@ function sameCompany(target: string, company: string): boolean {
   return short.length >= 4 && ` ${long} `.includes(` ${short} `);
 }
 
+/** True when a target role and an event field share a whole word sequence: "Product management" ~ "product". */
+function sameField(role: string, field: string): boolean {
+  const a = normName(role);
+  const b = normName(field);
+  if (!a || !b) return false;
+  return ` ${a} `.includes(` ${b} `) || ` ${b} `.includes(` ${a} `);
+}
+
 /**
- * percent = min(99, round(10 + 75 * s + companyBoost))
+ * percent = min(99, round(10 + 75 * s + companyBoost + roleBoost))
  *   s = clamp((delta - lo) / (hi - lo), 0, 1)         delta vs. ANCHOR, model-specific band, see MODELS
  *   companyBoost = 25 for the first target company attending, +8 for each additional
+ *   roleBoost = 15 when the events API tagged the event with one of the student's target roles
  * So unrelated events land around 10 to 30, clearly on-role ones around 60 to 85, and an event
- * with a target company (the strongest real signal) jumps to the top.
+ * with a target company (the strongest real signal) jumps to the top. The role boost exists because
+ * embeddings only compare wording: a hackathon with a one-line description ("Hackathon, hosted by BYU
+ * CS Department.") reads as generic even when the API tagged it "software engineering".
  */
-function toPercent(delta: number, model: Model, targetHits: number): number {
+function toPercent(delta: number, model: Model, targetHits: number, roleHit: boolean): number {
   const s = Math.min(1, Math.max(0, (delta - model.lo) / (model.hi - model.lo)));
-  const boost = targetHits > 0 ? 25 + (targetHits - 1) * 8 : 0;
+  const boost = (targetHits > 0 ? 25 + (targetHits - 1) * 8 : 0) + (roleHit ? 15 : 0);
   return Math.min(99, Math.round(10 + 75 * s + boost));
 }
 
@@ -217,7 +229,8 @@ export async function POST(request: Request): Promise<Response> {
     const baseline = cosine(vectors[0], vectors[1]);
     const scores = events.map((event, i) => {
       const hits = profile.companies.filter((t) => event.companies.some((c) => sameCompany(t, c))).length;
-      return { id: event.id, percent: toPercent(cosine(vectors[0], vectors[i + 2]) - baseline, model, hits) };
+      const roleHit = profile.roles.some((r) => event.fields.some((f) => sameField(r, f)));
+      return { id: event.id, percent: toPercent(cosine(vectors[0], vectors[i + 2]) - baseline, model, hits, roleHit) };
     });
     return json(200, { scores, model: model.name });
   } catch (error) {

@@ -8,7 +8,7 @@ import type { ScoredEvent } from '../types/event';
 import type { Profile } from '../types/profile';
 
 const ENDPOINT = '/api/rank-events';
-const CACHE_KEY = 'doorway_ai_rank_v1';
+const CACHE_KEY = 'doorway_ai_rank_v2'; // v2: role boost from the API's fields
 const CACHE_ENTRIES = 6;
 const CACHE_TTL_MS = 12 * 3_600_000;
 const MAX_EVENTS = 98;
@@ -114,7 +114,8 @@ async function request(profile: Profile, items: ScoredEvent[], key: string): Pro
         events: items.slice(0, MAX_EVENTS).map((item) => ({
           id: item.event.id,
           text: eventText(item),
-          companies: item.employers.map((e) => e.name).slice(0, 30)
+          companies: item.employers.map((e) => e.name).slice(0, 30),
+          fields: item.event.tags.slice(0, 20).map((t) => t.slice(0, 80))
         }))
       })
     });
