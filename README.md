@@ -16,7 +16,7 @@ Hackathon project for the **Improving the job hunt** challenge. Doorway pulls sc
 
 It is a clickable walkthrough with sample data. Accounts and profiles are simulated and stored only in your browser (localStorage); nothing leaves your device.
 
-- **Live:** https://doorway-gray.vercel.app (redeploys on every push to `main`)
+- **Live:** https://byu-doorway.vercel.app (redeploys on every push to `main`)
 - **Locally:** run `npm install`, then `npm run dev`, and open the URL it prints.
 - **Production build:** `npm run build` writes the site to `dist/`; `npm run preview` serves it.
 

@@ -1,6 +1,6 @@
 # Events API: data gap report and requests
 
-From the front-end team (Campus Connect / Doorway) to the events API owner. Written 2026-10-02 after wiring the live API into the Events page and the Profile page's "Events that fit this profile" card. Source of truth for the current API: [`api.md`](./api.md).
+From the front-end team (Doorway) to the events API owner. Written 2026-10-02 after wiring the live API into the Events page and the Profile page's "Events that fit this profile" card. Source of truth for the current API: [`api.md`](./api.md).
 
 ## Summary (paste this to the API owner)
 

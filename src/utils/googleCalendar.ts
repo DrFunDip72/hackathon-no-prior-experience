@@ -14,7 +14,7 @@ export function googleCalendarUrl(item: ScoredEvent): string {
   item.event.description,
   peopleLine ? `People to meet:\n• ${peopleLine}` : '',
   item.event.sourceUrl ? `Details: ${item.event.sourceUrl}` : '',
-  'Added with Campus Connect'].
+  'Added with Doorway'].
 
   filter(Boolean).
   join('\n\n');

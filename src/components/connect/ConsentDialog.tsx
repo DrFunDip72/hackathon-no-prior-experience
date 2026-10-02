@@ -57,13 +57,13 @@ export function ConsentDialog({ source, accountEmail, onAllow, onCancel }: Conse
             }
             </div>
             <h2 id="consent-title" className="mt-4 text-lg font-semibold text-ink">
-              Campus Connect wants access to {source.name}
+              Doorway wants access to {source.name}
             </h2>
             <p className="mt-1 text-sm text-muted">
               {source.provider === 'Google' ? `Signed in as ${accountEmail}` : 'Signed in with your BYU NetID'}
             </p>
 
-            <p className="mt-5 text-sm font-medium text-ink">This will allow Campus Connect to:</p>
+            <p className="mt-5 text-sm font-medium text-ink">This will allow Doorway to:</p>
             <ul className="mt-2 space-y-2">
               {source.permissions.map((p) =>
             <li key={p} className="flex items-start gap-2 text-sm text-ink">

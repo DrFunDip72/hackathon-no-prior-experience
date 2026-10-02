@@ -137,7 +137,7 @@ const RESPONSE_SCHEMA = obj({
   suggestedIndustries: arr(strEnum(INDUSTRIES))
 });
 
-const SYSTEM_PROMPT = `You read a college student's resume and/or LinkedIn profile and turn them into profile data for Campus Connect, a BYU app that helps students find networking events and know who to talk to there.
+const SYSTEM_PROMPT = `You read a college student's resume and/or LinkedIn profile and turn them into profile data for Doorway, a BYU app that helps students find networking events and know who to talk to there.
 
 Use only facts stated in the sources. Never invent employers, dates, numbers, links or skills. Use "" or [] for anything the sources don't say.
 
