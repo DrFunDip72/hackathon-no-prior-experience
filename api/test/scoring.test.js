@@ -155,3 +155,10 @@ test('bulk rows are unverified, keep the summary not raw text, and drop past or 
   assert.equal(rows[0].description, 'Product roles overview.');
   assert.equal(skipped.length, 2);
 });
+
+test('"Lucid Software" resolves to Lucid, so students who target Lucid match it', () => {
+  const row = toEventRow({ title: 'PM Career Fair', start: '2026-10-21 18:00', companies: ['BambooHR', 'LeaderFactor', 'Lucid Software'] });
+  assert.deepEqual(row.companies, ['BambooHR', 'LeaderFactor', 'Lucid']);
+  const rec = scoreEvent({ ...row, start_at: row.start_at, fields: ['product'] }, { target_companies: ['Lucid'] }, { now: new Date('2026-10-02T12:00:00-06:00') });
+  assert.deepEqual(rec.matched_companies, ['Lucid']);
+});
