@@ -3,13 +3,14 @@ import { ArrowRightIcon, ArrowUpIcon, ClipboardPasteIcon, FileTextIcon, ImagePlu
 import { isPdf, readAsDataUrl, resizeImage } from '../../utils/files';
 import { takePendingResume } from '../../utils/pendingResume';
 import { splitList, unique } from '../../utils/text';
-import type { OnboardingDraft, OnboardingStep, SourceSubmission } from '../../types/onboarding';
+import type { ChatStep, OnboardingDraft, SourceSubmission } from '../../types/onboarding';
 import type { InitialValue } from '../../hooks/useOnboarding';
 import { PdfDropZone } from './PdfDropZone';
 import { LinkedInPdfHelp } from './LinkedInPdfHelp';
 
 interface ComposerProps {
-  step: OnboardingStep;
+  /** A student onboarding step, or an employer intake step (same kinds, its own ids). */
+  step: ChatStep<string>;
   initial: InitialValue;
   isEditing: boolean;
   onSubmit: (value: string, extra?: Partial<OnboardingDraft>) => void;
@@ -41,9 +42,12 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
   const [other, setOther] = useState(() => initialList.filter((v) => !options.includes(v)).join(', '));
   const [showOther, setShowOther] = useState(() => other !== '');
 
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const knownLinkedin = step.kind === 'linkedin' && Boolean(step.knownUrl);
   const isTyped = step.kind === 'text' || step.kind === 'linkedin' && !knownLinkedin;
-  const readingLabel = step.kind === 'resume' ? 'Reading your resume…' : 'Reading your LinkedIn…';
+  // The upload-and-read step: a resume for students, a job posting for employers.
+  const doc = step.document ?? 'resume';
+  const readingLabel = step.kind === 'resume' ? `Reading your ${doc}…` : 'Reading your LinkedIn…';
 
   const read = async (input: SourceSubmission) => {
     setError(null);
@@ -116,8 +120,8 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
 
   const submitPastedResume = () => {
     const text = pasted.trim();
-    if (text.length < MIN_PASTE) return setError('That’s a bit short for a resume. Paste the whole thing, or skip for now.');
-    void read({ step: 'resume', label: 'Pasted resume text', text });
+    if (text.length < MIN_PASTE) return setError(`That’s a bit short for a ${doc}. Paste the whole thing, or skip for now.`);
+    void read({ step: 'resume', label: `Pasted ${doc} text`, text });
   };
 
   const handlePhoto = async (file: File) => {
@@ -144,7 +148,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
 
   // A resume picked on the landing page: start reading it as soon as the resume step is on screen.
   useEffect(() => {
-    if (step.kind !== 'resume') return;
+    if (step.id !== 'resume') return;
     const file = takePendingResume();
     if (file) void onFile(file);
     // Runs once per mount; the pending file is consumed on first read.
@@ -205,6 +209,8 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
   'Filled in from what you shared. Press Enter to keep it, or edit.' :
   step.kind === 'resume' && pasting ?
   'Ctrl + Enter to send' :
+  step.suggestions?.length ?
+  'Tap an option or type your own. Enter to send.' :
   isTyped ?
   'Enter to send' :
   '';
@@ -229,7 +235,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             </div> :
         pasting ?
         <>
-              {pasteBox('Paste your resume text', 'Paste the full text of your resume here…', submitPastedResume)}
+              {pasteBox(`Paste your ${doc} text`, `Paste the full text of your ${doc} here…`, submitPastedResume)}
               <div className="flex items-center justify-between gap-2 pt-1">
                 <button type="button" onClick={() => setPasting(false)} className={linkButton}>
                   <FileTextIcon className="h-4 w-4" aria-hidden="true" />
@@ -238,7 +244,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
                 <button
               type="button"
               onClick={submitPastedResume}
-              aria-label="Send resume text"
+              aria-label={`Send ${doc} text`}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-colors duration-150 hover:bg-navy">
 
                   <ArrowUpIcon className="h-4 w-4" aria-hidden="true" />
@@ -247,11 +253,11 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             </> :
 
         <>
-              <PdfDropZone what="resume" helper={step.helper} onFile={(file) => void onFile(file)} />
+              <PdfDropZone what={doc} helper={step.helper} onFile={(file) => void onFile(file)} />
               <div className="pt-1">
                 <button type="button" onClick={() => setPasting(true)} className={linkButton}>
                   <ClipboardPasteIcon className="h-4 w-4" aria-hidden="true" />
-                  or paste your resume text
+                  or paste your {doc} text
                 </button>
               </div>
             </>
@@ -380,6 +386,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             {step.prompt}
           </label>
           <textarea
+          ref={textRef}
           id={`answer-${step.id}`}
           autoFocus={!pasting}
           rows={step.multiline ? 3 : 1}
@@ -408,6 +415,29 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             {busy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowUpIcon className="h-4 w-4" aria-hidden="true" />}
           </button>
         </form>
+      }
+
+      {step.kind === 'text' && step.suggestions && step.suggestions.length > 0 &&
+      <div className="flex flex-wrap gap-1.5 px-1 pt-2" role="group" aria-label="Suggestions">
+          {step.suggestions.map((option) =>
+        <button
+          key={option}
+          type="button"
+          aria-pressed={value === option}
+          onClick={() => {
+            setValue(option);
+            setError(null);
+            // Back to the field, so Enter sends what was just filled in.
+            textRef.current?.focus();
+          }}
+          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-150 ${
+          value === option ? 'border-navy bg-navy-50 text-navy' : 'border-line text-muted hover:border-navy-200 hover:text-ink'}`
+          }>
+
+              {option}
+            </button>
+        )}
+        </div>
       }
 
       {step.kind === 'linkedin' &&
@@ -472,7 +502,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
 
         <span className="text-xs text-muted">{footerHint}</span>
         }
-        {step.kind !== 'photo' && step.id !== 'visibility' && !knownLinkedin &&
+        {step.kind !== 'photo' && step.id !== 'visibility' && !knownLinkedin && !step.required &&
         <button
           type="button"
           onClick={onSkip}

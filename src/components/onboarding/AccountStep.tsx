@@ -8,20 +8,37 @@ import { useSession } from '../../contexts/SessionContext';
 import { api, ApiError, type ApiField } from '../../utils/api';
 import { isEmail } from '../../utils/text';
 import type { Profile } from '../../types/profile';
+import type { EmployerAccount } from '../../types/employer';
 
 type Errors = Partial<Record<ApiField | 'form', string>>;
 
-interface AccountStepProps {
-  profile: Profile;
+const STUDENT_COPY = {
+  title: 'Save your profile',
+  blurb: 'Your profile is ready. Create an account to keep it and see events that fit.',
+  submitLabel: 'Create account and save',
+  backLabel: 'Back to my answers',
+  namePlaceholder: 'Jordan Ellis',
+  emailPlaceholder: 'you@byu.edu'
+};
+
+type AccountProps =
+/** Student onboarding: the profile just built, saved with the new student account. */
+{profile: Profile;onSave?: never;} |
+/** Employer intake: a recruiter account, saved by the caller instead of as a student session. */
+{profile?: never;onSave: (account: EmployerAccount) => Promise<void>;};
+
+type AccountStepProps = AccountProps & {
   onCreated: () => void;
   onBack: () => void;
-}
+  copy?: Partial<typeof STUDENT_COPY>;
+};
 
-/** The last onboarding step: create an account so the profile that was just built is saved. */
-export function AccountStep({ profile, onCreated, onBack }: AccountStepProps) {
+/** The last step of onboarding (student or employer): create an account so what was just built is saved. */
+export function AccountStep({ profile, onSave, onCreated, onBack, copy: copyOverrides }: AccountStepProps) {
   const { signUp, googleSignIn } = useSession();
-  const [name, setName] = useState(profile.name);
-  const [email, setEmail] = useState(profile.email);
+  const copy = { ...STUDENT_COPY, ...copyOverrides };
+  const [name, setName] = useState(profile?.name ?? '');
+  const [email, setEmail] = useState(profile?.email ?? '');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [accountExists, setAccountExists] = useState(false);
@@ -34,7 +51,7 @@ export function AccountStep({ profile, onCreated, onBack }: AccountStepProps) {
       setAccountExists(exists);
       // The profile just built would otherwise be lost the moment "Log in instead" navigates away.
       // Keep it for one login attempt so it can be offered back, instead of silently discarding it.
-      if (exists && email.trim()) {
+      if (exists && email.trim() && profile) {
         api.saveRecoveredProfile(email, { ...profile, name: name.trim() || profile.name, email: email.trim() });
       }
     } else {
@@ -54,6 +71,7 @@ export function AccountStep({ profile, onCreated, onBack }: AccountStepProps) {
     if (Object.keys(found).length) return;
     setPending('form');
     try {
+      if (onSave) await onSave({ name: name.trim(), email: email.trim() });else
       await signUp(name, email, password, { ...profile, name: name.trim() });
       onCreated();
     } catch (err) {
@@ -66,6 +84,8 @@ export function AccountStep({ profile, onCreated, onBack }: AccountStepProps) {
     setAccountExists(false);
     setPending('google');
     try {
+      // Sign-in is simulated; an employer without a name or email yet gets a placeholder Google identity.
+      if (onSave) await onSave({ name: name.trim() || 'Recruiter', email: email.trim() || 'recruiter@company.example' });else
       await googleSignIn({ ...profile, name: name.trim() || profile.name, email: email.trim() || profile.email });
       onCreated();
     } catch (err) {
@@ -88,12 +108,11 @@ export function AccountStep({ profile, onCreated, onBack }: AccountStepProps) {
           className="mb-6 flex items-center gap-1.5 text-sm text-muted transition-colors duration-150 hover:text-ink disabled:opacity-60">
 
           <ArrowLeftIcon className="h-3.5 w-3.5" aria-hidden="true" />
-          Back to my answers
+          {copy.backLabel}
         </button>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">Save your profile</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">{copy.title}</h1>
         <p className="mt-1.5 text-sm text-muted">
-          Your profile is ready. Create an account to keep it and see events that fit. Sign-in is simulated for this demo, and
-          your data stays on this device.
+          {copy.blurb} Sign-in is simulated for this demo, and your data stays on this device.
         </p>
 
         <div className="mt-8 rounded-2xl border border-line bg-white p-6">
@@ -114,7 +133,7 @@ export function AccountStep({ profile, onCreated, onBack }: AccountStepProps) {
           </div>
 
           <form onSubmit={onSubmit} noValidate className="space-y-4">
-            <TextField label="Full name" value={name} onChange={setName} error={errors.name} autoComplete="name" placeholder="Jordan Ellis" />
+            <TextField label="Full name" value={name} onChange={setName} error={errors.name} autoComplete="name" placeholder={copy.namePlaceholder} />
             <div>
               <TextField
                 label="Email"
@@ -126,7 +145,7 @@ export function AccountStep({ profile, onCreated, onBack }: AccountStepProps) {
                 }}
                 error={errors.email}
                 autoComplete="email"
-                placeholder="you@byu.edu" />
+                placeholder={copy.emailPlaceholder} />
 
               {accountExists &&
               <Link
@@ -158,17 +177,19 @@ export function AccountStep({ profile, onCreated, onBack }: AccountStepProps) {
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
 
               {pending === 'form' && <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden="true" />}
-              Create account and save
+              {copy.submitLabel}
             </button>
           </form>
         </div>
 
+        {!onSave &&
         <p className="mt-6 text-center text-sm text-muted">
-          Already have an account?{' '}
-          <Link to="/login" className="font-medium text-navy hover:underline">
-            Log in
-          </Link>
-        </p>
+            Already have an account?{' '}
+            <Link to="/login" className="font-medium text-navy hover:underline">
+              Log in
+            </Link>
+          </p>
+        }
       </motion.div>
     </main>);
 

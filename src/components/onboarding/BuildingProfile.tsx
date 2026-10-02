@@ -2,10 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckIcon, Loader2Icon } from 'lucide-react';
 
-export function BuildingProfile({ usedResume }: {usedResume: boolean;}) {
-  const steps = [
-  usedResume ? 'Combining what I read with your answers' : 'Organizing your answers',
-  'Shaping your headline and skills'];
+interface BuildingProfileProps {
+  usedResume: boolean;
+  /** Defaults to the student copy; the employer intake passes its own. */
+  title?: string;
+  lastStep?: string;
+}
+
+/** The short "working on it" checklist shown between the chat and the next screen. */
+export function BuildingProfile({ usedResume, title = 'Building your profile', lastStep = 'Shaping your headline and skills' }: BuildingProfileProps) {
+  const steps = [usedResume ? 'Combining what I read with your answers' : 'Organizing your answers', lastStep];
 
   const [done, setDone] = useState(0);
 
@@ -23,7 +29,7 @@ export function BuildingProfile({ usedResume }: {usedResume: boolean;}) {
         transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
         className="w-full max-w-sm">
         
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">Building your profile</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1>
         <p className="mt-1.5 text-sm text-muted">Just a second.</p>
         <ul className="mt-8 space-y-4">
           {steps.map((label, i) => {

@@ -9,10 +9,12 @@ interface ReadyDialogProps {
   onClose: () => void;
   /** Where focus goes on close when whatever had it before opening is gone (e.g. the composer that just unmounted). */
   fallbackFocus: React.RefObject<HTMLElement>;
+  /** The primary button; defaults to the student copy. */
+  actionLabel?: string;
 }
 
 /** Shown once every question is answered: a modal dialog that hands off to building the profile. */
-export function ReadyDialog({ open, summary, onBuild, onClose, fallbackFocus }: ReadyDialogProps) {
+export function ReadyDialog({ open, summary, onBuild, onClose, fallbackFocus, actionLabel = 'Build my profile' }: ReadyDialogProps) {
   const reduce = useReducedMotion();
   const panelRef = useRef<HTMLDivElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
@@ -91,7 +93,7 @@ export function ReadyDialog({ open, summary, onBuild, onClose, fallbackFocus }: 
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink px-5 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy focus:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2">
 
                 <SparklesIcon className="h-4 w-4" aria-hidden="true" />
-                Build my profile
+                {actionLabel}
               </button>
               <button
               type="button"

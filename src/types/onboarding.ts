@@ -17,8 +17,12 @@ export type StepId =
 'photo' |
 'visibility';
 
-export interface OnboardingStep {
-  id: StepId;
+/**
+ * One question in a chat intake. Student onboarding uses StepId; the employer intake (src/data/employerSteps.ts)
+ * reuses the same shape, Composer and chat UI with its own ids.
+ */
+export interface ChatStep<Id extends string = StepId> {
+  id: Id;
   kind: StepKind;
   prompt: string;
   helper?: string;
@@ -28,7 +32,15 @@ export interface OnboardingStep {
   multiline?: boolean;
   /** LinkedIn step: the URL the AI reader already found, so the student isn't asked to type it. */
   knownUrl?: string;
+  /** resume kind: what's being uploaded and read, e.g. 'job posting'. Defaults to 'resume'. */
+  document?: string;
+  /** text kind: one-tap answers shown under the field. */
+  suggestions?: string[];
+  /** Hides "Skip for now". */
+  required?: boolean;
 }
+
+export type OnboardingStep = ChatStep<StepId>;
 
 export interface Answer {
   value: string;
