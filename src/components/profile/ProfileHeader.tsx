@@ -3,7 +3,7 @@ import { CameraIcon, DownloadIcon, ExternalLinkIcon, Loader2Icon, PencilIcon } f
 import { toast } from 'sonner';
 import { Avatar } from '../ui/Avatar';
 import { TextField } from '../ui/TextField';
-import { useSectionEditor } from '../../hooks/useSectionEditor';
+import { useEditRequest, useSectionEditor } from '../../hooks/useSectionEditor';
 import { resizeImage } from '../../utils/files';
 import type { SectionProps } from './SectionCard';
 
@@ -18,8 +18,10 @@ export function ProfileHeader({ profile, editable, onSave }: SectionProps) {
       handshakeUrl: profile.handshakeUrl,
       linkedinUrl: profile.linkedinUrl
     }),
-    (form) => onSave(form)
+    (form) => onSave(form),
+    'intro'
   );
+  useEditRequest('photo', () => photoRef.current?.click());
 
   const onPhoto = async (file: File | undefined) => {
     if (!file) return;
@@ -48,7 +50,7 @@ export function ProfileHeader({ profile, editable, onSave }: SectionProps) {
   filter((l) => l.href);
 
   return (
-    <section aria-label="Profile summary" className="overflow-hidden rounded-xl border border-line bg-white">
+    <section id="profile-intro" aria-label="Profile summary" className="scroll-mt-20 overflow-hidden rounded-xl border border-line bg-white">
       <div className="h-24 bg-navy sm:h-28" />
       <div className="px-6 pb-6">
         <div className="flex items-end justify-between gap-4">

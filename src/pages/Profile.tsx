@@ -13,6 +13,7 @@ import { EducationSection } from '../components/profile/EducationSection';
 import { SkillsSection } from '../components/profile/SkillsSection';
 import { InterestsSection } from '../components/profile/InterestsSection';
 import { VisibilityPanel } from '../components/profile/VisibilityPanel';
+import { ProfileCompletion } from '../components/profile/ProfileCompletion';
 import { useSession } from '../contexts/SessionContext';
 import { useEventFeed } from '../hooks/useEventFeed';
 import { formatDay, formatTimeRange, isHappeningNow } from '../utils/dates';
@@ -85,7 +86,7 @@ export function Profile() {
               </button>
             </section> :
 
-          <>
+          <ProfileCompletion profile={profile} editable={editable}>
               <ProfileHeader {...sectionProps} />
               <AtAGlance {...sectionProps} />
               <AboutSection {...sectionProps} />
@@ -94,7 +95,7 @@ export function Profile() {
               <EducationSection {...sectionProps} />
               <SkillsSection {...sectionProps} />
               <InterestsSection {...sectionProps} />
-            </>
+            </ProfileCompletion>
           }
         </div>
 

@@ -29,7 +29,8 @@ export function AtAGlance({ profile, editable, onSave }: SectionProps) {
       },
       workAuthorization: f.workAuthorization,
       topSkills: splitList(f.topSkills).slice(0, 5)
-    })
+    }),
+    'glance'
   );
 
   const facts = [
@@ -50,6 +51,7 @@ export function AtAGlance({ profile, editable, onSave }: SectionProps) {
 
   return (
     <SectionCard
+      id="profile-glance"
       title="At a glance"
       description="What recruiters check first"
       editable={editable}

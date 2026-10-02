@@ -4,12 +4,13 @@ import { TextAreaField } from '../ui/TextAreaField';
 import { useSectionEditor } from '../../hooks/useSectionEditor';
 
 export function AboutSection({ profile, editable, onSave }: SectionProps) {
-  const ed = useSectionEditor(() => profile.summary, (summary) => onSave({ summary: summary.trim() }));
+  const ed = useSectionEditor(() => profile.summary, (summary) => onSave({ summary: summary.trim() }), 'about');
 
   if (!editable && !profile.summary) return null;
 
   return (
     <SectionCard
+      id="profile-about"
       title="About"
       editable={editable}
       editing={ed.editing}

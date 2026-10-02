@@ -10,6 +10,8 @@ export interface SectionProps {
 
 interface SectionCardProps {
   title: string;
+  /** DOM id, so the finish-your-profile card can scroll here. */
+  id?: string;
   description?: string;
   editable: boolean;
   editing: boolean;
@@ -20,9 +22,9 @@ interface SectionCardProps {
   children: React.ReactNode;
 }
 
-export function SectionCard({ title, description, editable, editing, saving, onEdit, onSave, onCancel, children }: SectionCardProps) {
+export function SectionCard({ title, id, description, editable, editing, saving, onEdit, onSave, onCancel, children }: SectionCardProps) {
   return (
-    <section aria-label={title} className="rounded-xl border border-line bg-white p-6">
+    <section id={id} aria-label={title} className="scroll-mt-20 rounded-xl border border-line bg-white p-6">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold text-ink">{title}</h2>

@@ -30,7 +30,8 @@ export function ExperienceSection({ profile, editable, onSave }: SectionProps) {
         impact: f.impact.split('\n').map((l) => l.replace(/^[•\-\s]+/, '').trim()).filter(Boolean),
         skills: splitList(f.skills)
       }))
-    })
+    }),
+    'experience'
   );
 
   if (!editable && profile.experience.length === 0) return null;
@@ -43,6 +44,7 @@ export function ExperienceSection({ profile, editable, onSave }: SectionProps) {
 
   return (
     <SectionCard
+      id="profile-experience"
       title="Experience"
       description="Results first, with the skills each role proves"
       editable={editable}

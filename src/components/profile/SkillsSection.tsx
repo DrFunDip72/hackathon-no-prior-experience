@@ -20,7 +20,8 @@ export function SkillsSection({ profile, editable, onSave }: SectionProps) {
       skillGroups: form.
       map((f) => ({ label: f.label.trim() || 'Other', skills: splitList(f.skills) })).
       filter((g) => g.skills.length)
-    })
+    }),
+    'skills'
   );
 
   if (!editable && profile.skillGroups.length === 0) return null;
@@ -30,6 +31,7 @@ export function SkillsSection({ profile, editable, onSave }: SectionProps) {
 
   return (
     <SectionCard
+      id="profile-skills"
       title="Skills"
       editable={editable}
       editing={ed.editing}
