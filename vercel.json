@@ -4,7 +4,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/parse-resume.ts": { "maxDuration": 60 }
+    "api/parse-resume.ts": { "maxDuration": 60 },
+    "api/rank-events.ts": { "maxDuration": 30 }
   },
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
 }

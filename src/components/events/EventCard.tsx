@@ -5,7 +5,7 @@ import { EventBadges } from './EventBadges';
 import { Avatar } from '../ui/Avatar';
 import { EmployerLogo } from '../ui/EmployerLogo';
 import { formatDay, formatDayOfMonth, formatMonth, formatTimeRange } from '../../utils/dates';
-import { matchLabel } from '../../utils/matching';
+import { eventMatch } from '../../utils/matching';
 import type { ScoredEvent } from '../../types/event';
 
 interface EventCardProps {
@@ -25,6 +25,7 @@ function whyLine(item: ScoredEvent): string {
 
 export function EventCard({ item, variant, selected, added, googleConnected, onSelect, onAdd }: EventCardProps) {
   const { event } = item;
+  const match = eventMatch(item);
   const frame = `cursor-pointer rounded-xl border bg-white transition-colors duration-150 ${
   selected ? 'border-navy ring-1 ring-navy' : 'border-line hover:border-navy-200'}`;
 
@@ -46,9 +47,9 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
             </p>
           </div>
           <div className="shrink-0 text-right">
-            {item.reasons.length > 0 ?
+            {match ?
             <>
-                <p className={`text-lg font-semibold tracking-tight sm:text-xl ${matchLabel(item.score).className}`}>{matchLabel(item.score).label}</p>
+                <p className={`text-lg font-semibold tracking-tight sm:text-xl ${match.className}`}>{match.label}</p>
               </> :
 
             <>
@@ -130,8 +131,8 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
       </div>
 
       <div className="flex shrink-0 flex-col items-end justify-between gap-3">
-        <span className={`whitespace-nowrap text-sm font-semibold ${item.reasons.length === 0 ? 'text-muted' : matchLabel(item.score).className}`}>
-          {item.reasons.length > 0 ? matchLabel(item.score).label : '—'}
+        <span className={`whitespace-nowrap text-sm font-semibold ${match ? match.className : 'text-muted'}`}>
+          {match ? match.label : '—'}
         </span>
         <AddToCalendarButton item={item} added={added} onAdd={onAdd} size="sm" />
       </div>

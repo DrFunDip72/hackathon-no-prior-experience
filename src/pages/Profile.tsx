@@ -16,7 +16,7 @@ import { VisibilityPanel } from '../components/profile/VisibilityPanel';
 import { useSession } from '../contexts/SessionContext';
 import { useEventFeed } from '../hooks/useEventFeed';
 import { formatDay, formatTimeRange, isHappeningNow } from '../utils/dates';
-import { matchLabel } from '../utils/matching';
+import { eventMatch } from '../utils/matching';
 import type { Profile as ProfileData } from '../types/profile';
 
 export function Profile() {
@@ -142,8 +142,8 @@ export function Profile() {
                           , {formatTimeRange(item.start, item.end)}
                         </p>
                       </div>
-                      <span className={`shrink-0 whitespace-nowrap text-sm font-semibold ${item.reasons.length ? matchLabel(item.score).className : 'text-muted'}`}>
-                        {item.reasons.length ? matchLabel(item.score).label : '—'}
+                      <span className={`shrink-0 whitespace-nowrap text-sm font-semibold ${eventMatch(item)?.className ?? 'text-muted'}`}>
+                        {eventMatch(item)?.label ?? '—'}
                       </span>
                     </div>
                     {item.reason && <p className="mt-1 line-clamp-2 text-xs text-ink">{item.reason}</p>}

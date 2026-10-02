@@ -80,10 +80,29 @@ export const GOOD_MATCH = 30;
  * "29%" made good matches look bad. Every event in the feed is already relevant; this just ranks how strongly.
  * Switch to the API's `percent` once it ships (requested in docs/api-requests.md).
  */
-export function matchLabel(score: number): { label: string; className: string } {
-  if (score >= STRONG_MATCH) return { label: 'Strong match', className: 'text-success-700' };
-  if (score >= GOOD_MATCH) return { label: 'Good match', className: 'text-navy' };
+export function matchLabel(score: number, ai = false): { label: string; className: string } {
+  if (score >= (ai ? AI_STRONG_MATCH : STRONG_MATCH)) return { label: 'Strong match', className: 'text-success-700' };
+  if (score >= (ai ? AI_GOOD_MATCH : GOOD_MATCH)) return { label: 'Good match', className: 'text-navy' };
   return { label: 'Worth a look', className: 'text-muted' };
+}
+
+/** Cut-offs for the AI percent from /api/rank-events (see the formula there), used instead of the ones above when it answered. */
+export const AI_STRONG_MATCH = 65;
+export const AI_GOOD_MATCH = 40;
+
+/**
+ * The label to show for a feed item, or null for "—". With an AI percent every event gets a label;
+ * without it (AI unavailable), an event with no API match reasons stays "—" as before.
+ */
+export function eventMatch(item: ScoredEvent): { label: string; className: string } | null {
+  if (item.aiPercent !== undefined) return matchLabel(item.aiPercent, true);
+  return item.reasons.length ? matchLabel(item.score) : null;
+}
+
+/** "Good match" or better; the Events page shows NoGoodMatches when nothing in the feed is. */
+export function isGoodMatch(item: ScoredEvent): boolean {
+  if (item.aiPercent !== undefined) return item.aiPercent >= AI_GOOD_MATCH;
+  return item.reasons.length > 0 && item.score >= GOOD_MATCH;
 }
 
 /** Class schedule blocks are campus wall-clock times, so compare in campus time. */

@@ -13,7 +13,7 @@ import { GoogleIcon } from '../components/ui/GoogleIcon';
 import { useSession } from '../contexts/SessionContext';
 import { useEventFeed } from '../hooks/useEventFeed';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-import { GOOD_MATCH } from '../utils/matching';
+import { AI_GOOD_MATCH, GOOD_MATCH, isGoodMatch } from '../utils/matching';
 
 type Tab = 'forYou' | 'plan';
 
@@ -29,10 +29,10 @@ export function Events() {
   const list = tab === 'forYou' ? feed.items : feed.planned;
   const selected = list.find((i) => i.event.id === selectedId) ?? list[0] ?? null;
   const added = new Set(state.addedEventIds);
-  // Same thresholds as matchLabel: nothing reaching "Good match" means nothing better than "Worth a look".
-  // An event with no match reasons (shown as "—") counts as no match, not a weak one.
-  const topScore = Math.max(0, ...list.filter((i) => i.reasons.length > 0).map((i) => i.score));
-  const noGoodMatches = tab === 'forYou' && list.length > 0 && topScore < GOOD_MATCH;
+  // Same thresholds as the labels (isGoodMatch): nothing reaching "Good match" means nothing better than "Worth a look".
+  // Without AI, an event with no match reasons (shown as "—") counts as no match, not a weak one.
+  const noGoodMatches = tab === 'forYou' && list.length > 0 && !list.some(isGoodMatch);
+  const aiRanked = list.some((i) => i.aiPercent !== undefined);
 
   useEffect(() => {
     if (!sheetOpen) return;
@@ -205,7 +205,7 @@ export function Events() {
               }
               </div> :
             noGoodMatches ?
-            <NoGoodMatches threshold={GOOD_MATCH} /> :
+            <NoGoodMatches threshold={aiRanked ? AI_GOOD_MATCH : GOOD_MATCH} /> :
 
             list.map((item, i) =>
             <EventCard

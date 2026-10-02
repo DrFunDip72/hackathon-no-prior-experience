@@ -4,10 +4,11 @@ import { calendarSources } from '../data/calendarSources';
 import { api } from '../utils/api';
 import { API_URL, fetchEventsByIds, fetchRecommendedEvents, toApiProfile } from '../utils/backend';
 import { daysFromToday } from '../utils/dates';
-import { getProfileTerms, scoreEvent } from '../utils/matching';
+import { AI_GOOD_MATCH, AI_STRONG_MATCH, getProfileTerms, scoreEvent } from '../utils/matching';
+import { cachedScores, fetchAiScores, rankKey, type AiScores } from '../utils/aiRank';
 import { unique } from '../utils/text';
 import type { CalendarSourceId } from '../types/calendar';
-import type { CampusEvent, EventType } from '../types/event';
+import type { CampusEvent, EventType, ScoredEvent } from '../types/event';
 import type { Profile } from '../types/profile';
 
 export type DateRange = 'week' | 'twoWeeks' | 'month';
@@ -22,6 +23,46 @@ export interface FeedFilters {
 export const defaultFilters: FeedFilters = { range: 'month', types: [], industries: [], hideConflicts: false };
 
 const RANGE_DAYS: Record<DateRange, number> = { week: 7, twoWeeks: 14, month: 31 };
+
+/**
+ * AI percents for the API's feed (src/utils/aiRank.ts), or null while loading / when AI is unavailable.
+ * One call per profile ranking fields + event set; a cached result shows on the first render.
+ */
+function useAiScores(profile: Profile, items: ScoredEvent[]): AiScores | null {
+  const key = useMemo(() => API_URL && profile && items.length ? rankKey(profile, items) : '', [profile, items]);
+  const [fetched, setFetched] = useState<{ key: string; scores: AiScores } | null>(null);
+  const cached = useMemo(() => key ? cachedScores(key) : null, [key]);
+
+  useEffect(() => {
+    if (!key || cached) return;
+    let alive = true;
+    fetchAiScores(profile, items, key).then((scores) => alive && scores && setFetched({ key, scores }));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, cached]);
+
+  if (!key) return null;
+  return cached ?? (fetched?.key === key ? fetched.scores : null);
+}
+
+/** The API's generic reason when nothing matched, e.g. "Upcoming info session, worth a look." */
+const GENERIC_REASON = /worth a look\.?$/i;
+
+/**
+ * Keeps the API's reason when it names real matches; otherwise, for events the AI rates Good or better,
+ * says what they fit (until Phase 2's per-event AI reasons replace this).
+ */
+function aiWhyLine(item: ScoredEvent, percent: number, profile: Profile): string | undefined {
+  const hasApiReason = item.reason && item.reasons.length > 0 && !GENERIC_REASON.test(item.reason);
+  if (hasApiReason || percent < AI_GOOD_MATCH) return item.reason;
+  const role = profile.lookingFor.roleTypes[0]?.trim();
+  const industry = profile.interests.industries[0]?.trim();
+  const topic = role ? `${role.toLowerCase()} roles` : industry ? industry.toLowerCase() : '';
+  if (!topic) return percent >= AI_STRONG_MATCH ? 'Closely matches your profile.' : 'Related to your profile.';
+  return percent >= AI_STRONG_MATCH ? `Closely matches your interest in ${topic}.` : `Related to your interest in ${topic}.`;
+}
 
 export function useEventFeed() {
   const { state } = useSession();
@@ -76,7 +117,7 @@ export function useEventFeed() {
   const showingAllSources = connectedSources.length === 0;
 
   // Ended events drop out; in-progress ones stay (the API returns them, shown as "Happening now").
-  const allScored = useMemo(() => {
+  const apiScored = useMemo(() => {
     if (!raw) return [];
     const terms = getProfileTerms(profile);
     const now = new Date();
@@ -86,6 +127,21 @@ export function useEventFeed() {
     // API results arrive ranked best-first; keep that order. Only sample data is ranked here.
     return API_URL ? scored : scored.sort((a, b) => b.score - a.score);
   }, [raw, profile, googleConnected]);
+
+  const aiScores = useAiScores(profile, apiScored);
+
+  // With AI percents: best fit first (stable, so the API's order breaks ties), labels from the percent,
+  // and a why line for events the API had nothing specific to say about. Without: the API's feed as is.
+  const allScored = useMemo(() => {
+    if (!aiScores) return apiScored;
+    return apiScored.
+    map((item) => {
+      const aiPercent = aiScores[item.event.id];
+      if (aiPercent === undefined) return item;
+      return { ...item, aiPercent, score: aiPercent, reason: aiWhyLine(item, aiPercent, profile) };
+    }).
+    sort((a, b) => (b.aiPercent ?? -1) - (a.aiPercent ?? -1));
+  }, [apiScored, aiScores, profile]);
 
   // Saved events loaded by id feed only "My plan" below, never "For you": they exist so a saved event
   // doesn't vanish when it drops out of the ranked feed, not to compete for feed placement.

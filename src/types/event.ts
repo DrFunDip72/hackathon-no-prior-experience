@@ -89,6 +89,11 @@ export interface ScoredEvent {
   reasons: string[];
   /** Full sentence explaining the match, when the API provided one. */
   reason?: string;
+  /**
+   * AI fit (0-99) from /api/rank-events, when it answered. When set, `score` equals it and labels use
+   * the AI thresholds in matchLabel; when absent, `score` is the scaled API score.
+   */
+  aiPercent?: number;
   conflict: string | null;
   employers: Employer[];
   people: ScoredPerson[];

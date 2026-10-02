@@ -27,7 +27,10 @@ function saveSubscription(email: string, threshold: number): void {
   }
 }
 
-/** Shown on the Events page instead of the list when nothing coming up is better than "Worth a look" (see matchLabel). */
+/**
+ * Shown on the Events page instead of the list when nothing coming up is better than "Worth a look"
+ * (isGoodMatch in utils/matching.ts). `threshold` is the cut-off in use: the AI percent's when AI ranking answered.
+ */
 export function NoGoodMatches({ threshold }: {threshold: number;}) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);

@@ -1,6 +1,6 @@
 # The events backend in api/ runs on Railway, not Vercel. Without this, Vercel turns every
 # file under api/ into its own serverless function, goes over the plan's function limit,
-# and every deploy fails. The only Vercel function is api/parse-resume.ts.
+# and every deploy fails. Vercel functions: api/parse-resume.ts and api/rank-events.ts.
 api/src
 api/test
 api/db

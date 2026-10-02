@@ -6,7 +6,7 @@ import { EventBadges } from './EventBadges';
 import { PersonRow } from './PersonRow';
 import { EmployerLogo } from '../ui/EmployerLogo';
 import { campusTime, formatDay, formatClock, formatTimeRange, toMinutes } from '../../utils/dates';
-import { matchLabel, scheduleForDay } from '../../utils/matching';
+import { eventMatch, scheduleForDay } from '../../utils/matching';
 import type { ScoredEvent } from '../../types/event';
 
 interface EventDetailProps {
@@ -21,6 +21,7 @@ interface EventDetailProps {
 export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onClose }: EventDetailProps) {
   const { event } = item;
   const day = scheduleForDay(item.start);
+  const match = eventMatch(item);
 
   return (
     <div className="flex h-full flex-col">
@@ -47,9 +48,9 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
         <EventBadges item={item} className="mt-3" />
 
         <div className="mt-5 flex items-baseline gap-2">
-          {item.reasons.length > 0 ?
+          {match ?
           <>
-              <span className={`text-xl font-semibold ${matchLabel(item.score).className}`}>{matchLabel(item.score).label}</span>
+              <span className={`text-xl font-semibold ${match.className}`}>{match.label}</span>
             </> :
 
           <>
