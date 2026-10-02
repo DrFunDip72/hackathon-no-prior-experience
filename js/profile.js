@@ -114,7 +114,8 @@
   function findName(text) {
     var m = /(?:[Mm]y name is|[Nn]ame:|\b[Ii]['’]m|\b[Ii] am)\s+([A-Z][A-Za-z'’\-]+(?:\s+[A-Z][A-Za-z'’\-]+){0,2})/.exec(text);
     if (m && !NOT_A_NAME.test(m[1])) return m[1].trim();
-    var first = text.split(/\r?\n/)[0].trim();
+    // First line, minus Markdown heading or bold markers ("# Jordan Ellis", "**Jordan Ellis**").
+    var first = text.split(/\r?\n/)[0].replace(/^[#>*_\s]+|[*_\s]+$/g, '');
     if (first.length <= 40 && /^[A-Z][A-Za-z'’\-]+(?:\s+[A-Z][A-Za-z.'’\-]+){1,3}$/.test(first) && !NOT_A_NAME.test(first)) return first;
     return '';
   }

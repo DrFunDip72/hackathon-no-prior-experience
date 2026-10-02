@@ -7,6 +7,7 @@ Hackathon project for the **Improving the job hunt** challenge. Doorway pulls sc
 - [`docs/brief.md`](docs/brief.md): the problem, the decisions, and why
 - [`docs/backlog.md`](docs/backlog.md): what is built and what is next
 - [`docs/magic-patterns-prompt.md`](docs/magic-patterns-prompt.md): the full product spec, also used to generate a Magic Patterns version
+- [`sample-profile/`](sample-profile/): Jordan Ellis, a fictional BYU CS senior for testing and demos (resume, PDF, LinkedIn mock, JSON)
 
 ## Try it
 

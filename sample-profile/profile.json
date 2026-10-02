@@ -1,0 +1,134 @@
+{
+  "_about": "Fictional sample student for the Doorway hackathon prototype. Not a real person, resume, or LinkedIn account. Phone and email use reserved placeholder values.",
+  "profile": {
+    "demo": true,
+    "name": "Jordan Ellis",
+    "email": "jordan.ellis@example.com",
+    "linkedin": "",
+    "photo": "",
+    "major": "Computer science",
+    "summary": "Computer science senior looking for full-time software engineer roles at early-stage or growth-stage companies. Builds with React, TypeScript, Python and SQL. Values ownership and learning fast. Hoping to meet Neighbor and Redo.",
+    "roles": ["software-engineer"],
+    "lookingFor": ["full-time"],
+    "companyStyle": ["early-stage", "growth-stage"],
+    "targetCompanies": ["Neighbor", "Redo"],
+    "values": ["Ownership", "Learning fast"],
+    "skills": ["React", "TypeScript", "Python", "SQL", "AWS"],
+    "eventTypes": ["hackathon", "career-fair", "info-session", "alumni"],
+    "resumeFile": "jordan-ellis-resume.pdf",
+    "visibleToEmployers": true
+  },
+  "contact": {
+    "location": "Provo, UT",
+    "phone": "(801) 555-0142",
+    "email": "jordan.ellis@example.com",
+    "linkedin": "https://www.linkedin.com/in/jordan-ellis-sample-profile",
+    "portfolio": "https://jordanellis.example.com"
+  },
+  "education": [
+    {
+      "school": "Brigham Young University",
+      "location": "Provo, UT",
+      "degree": "B.S. in Computer Science",
+      "start": "2019-09",
+      "end": "2027-04",
+      "expected": true,
+      "gpa": 3.68,
+      "coursework": [
+        "CS 235 Data Structures and Algorithms",
+        "CS 240 Advanced Programming Concepts",
+        "CS 260 Web Programming",
+        "CS 312 Algorithm Design and Analysis",
+        "CS 324 Systems Programming",
+        "CS 340 Software Design",
+        "CS 452 Database Modeling Concepts"
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "title": "Software Engineering Intern",
+      "organization": "Quarry Lane Software (fictional)",
+      "location": "Lehi, UT",
+      "type": "internship",
+      "start": "2026-05",
+      "end": "2026-08",
+      "highlights": [
+        "Built a React and TypeScript scheduling dashboard used by 120 property managers, replacing a spreadsheet workflow.",
+        "Cut the dashboard's initial load time from 4.1 s to 1.6 s by paginating a PostgreSQL query and caching results.",
+        "Wrote a Python job on AWS Lambda that syncs listings nightly, with alerts that caught three failed syncs before customers noticed.",
+        "Shipped 31 pull requests across the front end and back end, and demoed the finished dashboard to the whole 40-person company."
+      ],
+      "skills": ["React", "TypeScript", "PostgreSQL", "Python", "AWS"]
+    },
+    {
+      "title": "Teaching Assistant, CS 240",
+      "organization": "BYU Computer Science Department",
+      "location": "Provo, UT",
+      "type": "part-time",
+      "start": "2025-01",
+      "end": null,
+      "highlights": [
+        "Hold eight hours of office hours a week for a 300-student course, helping students debug Java projects.",
+        "Rewrote two autograder test suites in Java, cutting the false failures students report by about half."
+      ],
+      "skills": ["Java", "Teaching", "Code review"]
+    },
+    {
+      "title": "Full-time Volunteer Representative",
+      "organization": "Volunteer service",
+      "location": "Lima, Peru",
+      "type": "volunteer",
+      "start": "2020-06",
+      "end": "2022-06",
+      "highlights": [
+        "Led weekly planning for a team of 12 volunteers and taught classes in Spanish (fluent)."
+      ],
+      "skills": ["Leadership", "Spanish", "Public speaking"]
+    }
+  ],
+  "projects": [
+    {
+      "name": "ClubSync",
+      "stack": ["React", "TypeScript", "Node.js", "PostgreSQL"],
+      "summary": "Merges the event calendars of six campus clubs into one subscribable Google Calendar feed. About 250 students use it each week."
+    },
+    {
+      "name": "QuickQueue",
+      "stack": ["Python", "FastAPI", "React"],
+      "summary": "Office-hours queue built at a 24-hour hackathon. It texts students when a TA is ready for them. Two TA teams kept using it after the event."
+    },
+    {
+      "name": "Path tracer",
+      "stack": ["C++"],
+      "summary": "Multithreaded renderer with a work-stealing thread pool, six times faster than the single-threaded version on an 8-core laptop."
+    }
+  ],
+  "skills": {
+    "languages": ["TypeScript", "JavaScript", "Python", "Java", "C++", "SQL"],
+    "frameworks": ["React", "Node.js", "Express", "FastAPI"],
+    "tools": ["AWS (Lambda, S3)", "PostgreSQL", "Docker", "Git", "Figma"]
+  },
+  "activities": [
+    "Member, BYU ACM student chapter (2023 to present)",
+    "Member, Product Management Association (2025 to present)"
+  ],
+  "linkedin": {
+    "url": "https://www.linkedin.com/in/jordan-ellis-sample-profile",
+    "headline": "CS senior at BYU · Full-stack engineer (React, TypeScript, Python) · Looking for full-time software engineering roles at startups",
+    "location": "Provo, Utah, United States",
+    "connections": 412,
+    "followers": 438,
+    "openTo": {
+      "roles": ["Software Engineer", "Full Stack Engineer", "Frontend Engineer"],
+      "type": "full-time",
+      "locations": ["Utah County, UT", "Salt Lake City, UT", "Remote"],
+      "start": "2027-05"
+    },
+    "certifications": [{ "name": "AWS Certified Cloud Practitioner", "issuer": "Amazon Web Services", "issued": "2025-03" }],
+    "languages": [
+      { "language": "English", "proficiency": "native or bilingual" },
+      { "language": "Spanish", "proficiency": "full professional" }
+    ]
+  }
+}
