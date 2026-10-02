@@ -40,7 +40,8 @@ export function StudentResultCard({ item, top }: {item: ScoredStudent;top?: bool
       </div>
 
       <div className="flex shrink-0 flex-col items-end justify-between gap-3">
-        <span className={`whitespace-nowrap text-sm font-semibold tabular-nums ${fit.className}`}>{percent}% fit</span>
+        {/* Same size and weight as the top match's percent on the Events page (EventCard hero), colored by matchLabel. */}
+        <span className={`whitespace-nowrap text-lg font-semibold tabular-nums tracking-tight sm:text-xl ${fit.className}`}>{percent}% fit</span>
         <span className="hidden items-center gap-1 text-sm font-medium text-navy sm:flex">
           Profile
           <ArrowRightIcon className="h-3.5 w-3.5" aria-hidden="true" />
