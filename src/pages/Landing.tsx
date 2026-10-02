@@ -27,8 +27,8 @@ export function Landing() {
               <Link to="/login" className="rounded-md px-3 py-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas">
                 Log in
               </Link>
-              <Link to="/signup" className="rounded-lg bg-ink px-3.5 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
-                Sign up
+              <Link to="/onboarding" className="rounded-lg bg-ink px-3.5 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
+                Get started
               </Link>
             </>
           }
@@ -45,7 +45,7 @@ export function Landing() {
             who to talk to when you get there.
           </p>
           <div className="mt-10">
-            <HeroPrompt destination={user ? appHome : '/signup'} />
+            <HeroPrompt destination={appHome} />
           </div>
         </section>
 

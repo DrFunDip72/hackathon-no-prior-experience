@@ -16,16 +16,10 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Auth mode="login" />} />
-          <Route path="/signup" element={<Auth mode="signup" />} />
-          <Route
-            path="/onboarding"
-            element={
-            <ProtectedRoute requireProfile={false}>
-                <Onboarding />
-              </ProtectedRoute>
-            } />
-          
+          <Route path="/login" element={<Auth />} />
+          {/* Accounts are created at the end of onboarding, once the profile exists. */}
+          <Route path="/signup" element={<Navigate to="/onboarding" replace />} />
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
           <Route path="/connect" element={<ProtectedRoute><Connect /></ProtectedRoute>} />

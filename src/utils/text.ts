@@ -51,6 +51,10 @@ export function termMatch(a: string, b: string): boolean {
   return x === y || containsWord(x, y) || containsWord(y, x);
 }
 
+export function isEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export function newId(prefix: string): string {
   return `${prefix}${Math.random().toString(36).slice(2, 9)}`;
 }

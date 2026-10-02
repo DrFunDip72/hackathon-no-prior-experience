@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LogOutIcon } from 'lucide-react';
 import { Logo } from './Logo';
@@ -57,6 +57,15 @@ export function AppHeader() {
             </nav>
           }
         </div>
+
+        {!user &&
+        <p className="text-sm text-muted">
+            <span className="hidden sm:inline">Already have an account? </span>
+            <Link to="/login" className="font-medium text-navy hover:underline">
+              Log in
+            </Link>
+          </p>
+        }
 
         {user &&
         <div className="relative" ref={menuRef}>

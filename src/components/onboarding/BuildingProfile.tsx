@@ -2,16 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckIcon, Loader2Icon } from 'lucide-react';
 
-export function BuildingProfile({ hasResume, hasLinks }: {hasResume: boolean;hasLinks: boolean;}) {
+export function BuildingProfile({ usedResume }: {usedResume: boolean;}) {
   const steps = [
-  hasResume ? 'Reading your resume' : 'Organizing your answers',
-  hasLinks ? 'Pulling in Handshake and LinkedIn' : 'Shaping your headline and skills',
-  'Matching your interests to campus events'];
+  usedResume ? 'Combining what I read with your answers' : 'Organizing your answers',
+  'Shaping your headline and skills'];
 
   const [done, setDone] = useState(0);
 
   useEffect(() => {
-    const timers = steps.map((_, i) => setTimeout(() => setDone(i + 1), 750 * (i + 1)));
+    const timers = steps.map((_, i) => setTimeout(() => setDone(i + 1), 400 * (i + 1)));
     return () => timers.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -25,7 +24,7 @@ export function BuildingProfile({ hasResume, hasLinks }: {hasResume: boolean;has
         className="w-full max-w-sm">
         
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Building your profile</h1>
-        <p className="mt-1.5 text-sm text-muted">This takes a couple of seconds.</p>
+        <p className="mt-1.5 text-sm text-muted">Just a second.</p>
         <ul className="mt-8 space-y-4">
           {steps.map((label, i) => {
             const state = i < done ? 'done' : i === done ? 'active' : 'waiting';

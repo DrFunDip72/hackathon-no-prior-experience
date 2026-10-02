@@ -87,18 +87,19 @@ export const sampleResume: ResumeData = {
   }
 };
 
+// A blank profile body: nothing invented, so the student only sees what they actually told us.
 export const emptyResume: ResumeData = {
   headline: '',
   summary: '',
   year: '',
-  lookingFor: { roleTypes: [], employmentType: 'Internship', startDate: 'Summer 2027', locations: ['Provo, UT'] },
-  workAuthorization: 'Add your work authorization',
+  lookingFor: { roleTypes: [], employmentType: 'Either', startDate: '', locations: [] },
+  workAuthorization: '',
   topSkills: [],
   experience: [],
   projects: [],
   education: {
     school: 'Brigham Young University',
-    degree: 'B.S.',
+    degree: '',
     major: '',
     gradYear: '',
     gpa: '',

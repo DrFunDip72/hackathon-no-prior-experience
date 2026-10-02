@@ -39,7 +39,7 @@ export function AtAGlance({ profile, editable, onSave }: SectionProps) {
   },
   { label: 'Available', value: lookingFor.startDate || 'Not set' },
   { label: 'Locations', value: lookingFor.locations.join(' · ') || 'Open' },
-  { label: 'Work authorization', value: profile.workAuthorization }];
+  { label: 'Work authorization', value: profile.workAuthorization || 'Not set' }];
 
 
   return (

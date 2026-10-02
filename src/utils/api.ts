@@ -6,11 +6,13 @@ import { calendarSources } from '../data/calendarSources';
 import { events } from '../data/events';
 import type { CalendarId } from '../types/calendar';
 import type { CampusEvent } from '../types/event';
+import type { OnboardingDraft } from '../types/onboarding';
 import type { Profile } from '../types/profile';
 import type { SessionUser, UserState } from '../types/session';
 
 const USERS_KEY = 'cc_users';
 const SESSION_KEY = 'cc_session';
+const GUEST_DRAFT_KEY = 'cc_onboarding_draft';
 const stateKey = (email: string) => `cc_state_${email}`;
 
 interface StoredUser extends SessionUser {
@@ -86,12 +88,16 @@ export const api = {
     return startSession(user);
   },
 
-  async googleSignIn(): Promise<SessionUser> {
+  /** Simulated Google sign-in. Uses the name and email we already know (from the profile) when there is one. */
+  async googleSignIn(name?: string, rawEmail?: string): Promise<SessionUser> {
     await wait(900);
-    const email = 'jordan.ellis@gmail.com';
+    const displayName = name?.trim() || 'Jordan Ellis';
+    const email =
+    rawEmail?.trim().toLowerCase() ||
+    `${displayName.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '') || 'student'}@gmail.com`;
     const users = readUsers();
     if (!users[email]) {
-      users[email] = { name: 'Jordan Ellis', email, password: '' };
+      users[email] = { name: displayName, email, password: '' };
       writeJson(USERS_KEY, users);
     }
     return startSession(users[email]);
@@ -99,6 +105,25 @@ export const api = {
 
   logOut(): void {
     localStorage.removeItem(SESSION_KEY);
+  },
+
+  /** A guest's in-progress onboarding, kept on this device until they create an account. */
+  loadGuestDraft(): OnboardingDraft | null {
+    return readJson<OnboardingDraft | null>(GUEST_DRAFT_KEY, null);
+  },
+
+  saveGuestDraft(draft: OnboardingDraft): boolean {
+    if (writeJson(GUEST_DRAFT_KEY, draft)) return true;
+    // Storage full: drop the stored resume file and try again.
+    return writeJson(GUEST_DRAFT_KEY, { ...draft, resumeDataUrl: null });
+  },
+
+  clearGuestDraft(): void {
+    try {
+      localStorage.removeItem(GUEST_DRAFT_KEY);
+    } catch {
+      /* storage unavailable */
+    }
   },
 
   loadState(email: string): UserState {

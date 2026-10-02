@@ -26,6 +26,15 @@ It is a clickable walkthrough with sample data. Accounts and profiles are simula
 | Events | `/events` |
 | Connect calendars | `/connect` |
 
+## AI resume reading
+
+Onboarding can read an uploaded resume and LinkedIn "Save to PDF" export (or pasted text) with Google Gemini, through the server function `api/parse-resume.ts`. It needs a `GEMINI_API_KEY` (create one in [Google AI Studio](https://aistudio.google.com/apikey)):
+
+- **Vercel:** Project → Settings → Environment Variables → add `GEMINI_API_KEY` for **Production** and **Preview**, then redeploy.
+- **Locally:** put `GEMINI_API_KEY=...` in `.env.local` at the repo root (git-ignored), then restart `npm run dev`.
+
+Without the key the endpoint answers 503 and the app falls back to its built-in parser, so everything still works. The key stays on the server and is never sent to the browser.
+
 ## Code map
 
 Vite, React, TypeScript and Tailwind. The UI was generated with Magic Patterns from [`docs/magic-patterns-prompt.md`](docs/magic-patterns-prompt.md).

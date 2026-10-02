@@ -6,20 +6,18 @@ import { TextField } from '../components/ui/TextField';
 import { GoogleIcon } from '../components/ui/GoogleIcon';
 import { useSession } from '../contexts/SessionContext';
 import { ApiError, type ApiField } from '../utils/api';
+import { isEmail } from '../utils/text';
 import type { UserState } from '../types/session';
 
 type Errors = Partial<Record<ApiField | 'form', string>>;
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export function Auth({ mode }: {mode: 'login' | 'signup';}) {
-  const isSignup = mode === 'signup';
-  const { signUp, logIn, googleSignIn } = useSession();
+/** Log in for returning students. New students create their account at the end of onboarding. */
+export function Auth() {
+  const { logIn, googleSignIn } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as {from?: string;} | null)?.from;
 
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -32,10 +30,8 @@ export function Auth({ mode }: {mode: 'login' | 'signup';}) {
 
   const validate = (): Errors => {
     const next: Errors = {};
-    if (isSignup && !name.trim()) next.name = 'Enter your name.';
-    if (!EMAIL_RE.test(email.trim())) next.email = 'Enter a valid email address.';
-    if (isSignup && password.length < 8) next.password = 'Use at least 8 characters.';
-    if (!isSignup && !password) next.password = 'Enter your password.';
+    if (!isEmail(email)) next.email = 'Enter a valid email address.';
+    if (!password) next.password = 'Enter your password.';
     return next;
   };
 
@@ -46,7 +42,7 @@ export function Auth({ mode }: {mode: 'login' | 'signup';}) {
     if (Object.keys(found).length) return;
     setPending('form');
     try {
-      finish(isSignup ? await signUp(name, email, password) : await logIn(email, password));
+      finish(await logIn(email, password));
     } catch (err) {
       if (err instanceof ApiError) setErrors({ [err.field ?? 'form']: err.message });else
       setErrors({ form: 'Something went wrong. Try again.' });
@@ -72,12 +68,8 @@ export function Auth({ mode }: {mode: 'login' | 'signup';}) {
       </header>
       <main className="flex flex-1 items-start justify-center px-4 pb-16 pt-8 sm:pt-16">
         <div className="w-full max-w-sm">
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {isSignup ? 'Create your account' : 'Welcome back'}
-          </h1>
-          <p className="mt-1.5 text-sm text-muted">
-            {isSignup ? 'Two minutes to a profile employers can actually use.' : 'Log in to see this week’s events for you.'}
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">Welcome back</h1>
+          <p className="mt-1.5 text-sm text-muted">Log in to see this week’s events for you.</p>
 
           <div className="mt-8 rounded-2xl border border-line bg-white p-6">
             <button
@@ -85,7 +77,7 @@ export function Auth({ mode }: {mode: 'login' | 'signup';}) {
               onClick={onGoogle}
               disabled={pending !== null}
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas disabled:opacity-60">
-              
+
               {pending === 'google' ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden="true" /> : <GoogleIcon />}
               Continue with Google
             </button>
@@ -97,9 +89,6 @@ export function Auth({ mode }: {mode: 'login' | 'signup';}) {
             </div>
 
             <form onSubmit={onSubmit} noValidate className="space-y-4">
-              {isSignup &&
-              <TextField label="Full name" value={name} onChange={setName} error={errors.name} autoComplete="name" placeholder="Jordan Ellis" />
-              }
               <TextField
                 label="Email"
                 type="email"
@@ -108,16 +97,15 @@ export function Auth({ mode }: {mode: 'login' | 'signup';}) {
                 error={errors.email}
                 autoComplete="email"
                 placeholder="you@byu.edu" />
-              
+
               <TextField
                 label="Password"
                 type="password"
                 value={password}
                 onChange={setPassword}
                 error={errors.password}
-                hint={isSignup ? 'At least 8 characters.' : undefined}
-                autoComplete={isSignup ? 'new-password' : 'current-password'} />
-              
+                autoComplete="current-password" />
+
               {errors.form &&
               <p role="alert" className="rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger">
                   {errors.form}
@@ -127,17 +115,17 @@ export function Auth({ mode }: {mode: 'login' | 'signup';}) {
                 type="submit"
                 disabled={pending !== null}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
-                
+
                 {pending === 'form' && <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                {isSignup ? 'Create account' : 'Log in'}
+                Log in
               </button>
             </form>
           </div>
 
           <p className="mt-6 text-center text-sm text-muted">
-            {isSignup ? 'Already have an account? ' : 'New to Campus Connect? '}
-            <Link to={isSignup ? '/login' : '/signup'} className="font-medium text-navy hover:underline">
-              {isSignup ? 'Log in' : 'Sign up'}
+            New here?{' '}
+            <Link to="/onboarding" className="font-medium text-navy hover:underline">
+              Build your profile
             </Link>
           </p>
         </div>

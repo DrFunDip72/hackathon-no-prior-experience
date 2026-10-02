@@ -1,13 +1,16 @@
 import React, { useRef, useState } from 'react';
-import { ArrowUpIcon, FileTextIcon, ImagePlusIcon, Loader2Icon, XIcon } from 'lucide-react';
+import { ArrowUpIcon, ClipboardPasteIcon, FileTextIcon, ImagePlusIcon, Loader2Icon, PaperclipIcon, XIcon } from 'lucide-react';
 import { isPdf, readAsDataUrl, resizeImage } from '../../utils/files';
-import type { OnboardingDraft, OnboardingStep } from '../../types/onboarding';
+import type { OnboardingDraft, OnboardingStep, SourceSubmission } from '../../types/onboarding';
+import type { InitialValue } from '../../hooks/useOnboarding';
 
 interface ComposerProps {
   step: OnboardingStep;
-  initialValue: string;
+  initial: InitialValue;
   isEditing: boolean;
   onSubmit: (value: string, extra?: Partial<OnboardingDraft>) => void;
+  /** Resume and LinkedIn: saves the input and waits for the AI reader. */
+  onSubmitSource: (input: SourceSubmission) => Promise<void>;
   onSkip: () => void;
   onCancelEdit: () => void;
 }
@@ -15,38 +18,90 @@ interface ComposerProps {
 const HANDSHAKE_RE = /^(https?:\/\/)?([\w-]+\.)*joinhandshake\.com\/\S+/i;
 const LINKEDIN_RE = /^(https?:\/\/)?([\w-]+\.)*linkedin\.com\/in\/[\w%-]+\/?/i;
 const MAX_BYTES = 5 * 1024 * 1024;
-const STORE_LIMIT = 1.5 * 1024 * 1024;
+const MIN_PASTE = 80;
 
-export function Composer({ step, initialValue, isEditing, onSubmit, onSkip, onCancelEdit }: ComposerProps) {
-  const [value, setValue] = useState(initialValue);
+const withProtocol = (url: string) => !url || /^https?:\/\//i.test(url) ? url : `https://${url}`;
+
+export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, onSkip, onCancelEdit }: ComposerProps) {
+  const [value, setValue] = useState(initial.value);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [pasting, setPasting] = useState(false);
+  const [pasted, setPasted] = useState('');
+  const [attachment, setAttachment] = useState<{name: string;dataUrl: string;} | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const isTyped = step.kind === 'text' || step.kind === 'url' || step.kind === 'linkedin';
+  const readingLabel = step.kind === 'resume' ? 'Reading your resume…' : 'Reading your LinkedIn…';
+
+  const read = async (input: SourceSubmission) => {
+    setError(null);
+    setBusy(true);
+    try {
+      await onSubmitSource(input);
+    } catch {
+      setError('Something went wrong reading that. Try again, or skip for now.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const loadPdf = async (file: File): Promise<string | null> => {
+    setError(null);
+    if (!isPdf(file)) {
+      setError('Please upload a PDF. Word docs and images aren’t supported yet.');
+      return null;
+    }
+    if (file.size > MAX_BYTES) {
+      setError('That file is over 5 MB. Try exporting a smaller PDF.');
+      return null;
+    }
+    try {
+      return await readAsDataUrl(file);
+    } catch {
+      setError('We couldn’t open that file. Try another.');
+      return null;
+    }
+  };
+
+  const validUrl = (v: string): boolean => {
+    if (step.validate === 'handshake' && !HANDSHAKE_RE.test(v)) {
+      setError('That doesn’t look like a Handshake link. It should include joinhandshake.com.');
+      return false;
+    }
+    if (step.validate === 'linkedin' && !LINKEDIN_RE.test(v)) {
+      setError('That doesn’t look like a LinkedIn profile. It should look like linkedin.com/in/your-name.');
+      return false;
+    }
+    return true;
+  };
 
   const submitText = () => {
     const v = value.trim();
+    if (step.kind === 'linkedin') {
+      const text = pasting ? pasted.trim() : '';
+      if (!v && !attachment && !text) return setError('Add your LinkedIn URL or PDF, or skip this one for now.');
+      if (v && !validUrl(v)) return;
+      if (pasting && text && text.length < MIN_PASTE) return setError('That’s a bit short. Paste your whole LinkedIn profile, or clear it.');
+      void read({
+        step: 'linkedin',
+        label: withProtocol(v),
+        fileName: attachment?.name,
+        dataUrl: attachment?.dataUrl,
+        text: !attachment && text ? text : undefined
+      });
+      return;
+    }
     if (!v) return setError('Type an answer, or skip this one for now.');
-    if (step.validate === 'handshake' && !HANDSHAKE_RE.test(v))
-    return setError('That doesn’t look like a Handshake link. It should include joinhandshake.com.');
-    if (step.validate === 'linkedin' && !LINKEDIN_RE.test(v))
-    return setError('That doesn’t look like a LinkedIn profile. It should look like linkedin.com/in/your-name.');
-    onSubmit(step.kind === 'url' && !/^https?:\/\//i.test(v) ? `https://${v}` : v);
+    if (step.kind === 'url' && !validUrl(v)) return;
+    onSubmit(step.kind === 'url' ? withProtocol(v) : v);
   };
 
-  const handleResume = async (file: File) => {
-    setError(null);
-    if (!isPdf(file)) return setError('Please upload a PDF. Word docs and images aren’t supported yet.');
-    if (file.size > MAX_BYTES) return setError('That file is over 5 MB. Try exporting a smaller PDF.');
-    setBusy(true);
-    try {
-      const dataUrl = file.size <= STORE_LIMIT ? await readAsDataUrl(file) : null;
-      await new Promise((r) => setTimeout(r, 700));
-      onSubmit(file.name, { resumeFileName: file.name, resumeDataUrl: dataUrl });
-    } catch {
-      setError('We couldn’t read that file. Try another.');
-      setBusy(false);
-    }
+  const submitPastedResume = () => {
+    const text = pasted.trim();
+    if (text.length < MIN_PASTE) return setError('That’s a bit short for a resume. Paste the whole thing, or skip for now.');
+    void read({ step: 'resume', label: 'Pasted resume text', text });
   };
 
   const handlePhoto = async (file: File) => {
@@ -61,10 +116,14 @@ export function Composer({ step, initialValue, isEditing, onSubmit, onSkip, onCa
     }
   };
 
-  const onFile = (file: File | undefined) => {
+  const onFile = async (file: File | undefined) => {
     if (!file) return;
-    if (step.kind === 'resume') void handleResume(file);else
-    void handlePhoto(file);
+    if (step.kind === 'photo') return handlePhoto(file);
+    const dataUrl = await loadPdf(file);
+    if (!dataUrl) return;
+    if (step.kind === 'resume') return read({ step: 'resume', label: file.name, fileName: file.name, dataUrl });
+    setAttachment({ name: file.name, dataUrl });
+    setPasting(false);
   };
 
   const fileInput =
@@ -72,15 +131,54 @@ export function Composer({ step, initialValue, isEditing, onSubmit, onSkip, onCa
     ref={fileRef}
     type="file"
     className="sr-only"
-    accept={step.kind === 'resume' ? '.pdf,application/pdf' : 'image/*'}
+    accept={step.kind === 'photo' ? 'image/*' : '.pdf,application/pdf'}
     onChange={(e) => {
-      onFile(e.target.files?.[0]);
+      void onFile(e.target.files?.[0]);
       e.target.value = '';
     }}
     tabIndex={-1}
     aria-hidden="true" />;
 
 
+
+  const pasteBox = (label: string, placeholder: string, onSend?: () => void) =>
+  <div className="mt-2">
+      <label htmlFor={`paste-${step.id}`} className="sr-only">
+        {label}
+      </label>
+      <textarea
+      id={`paste-${step.id}`}
+      autoFocus
+      rows={6}
+      value={pasted}
+      disabled={busy}
+      onChange={(e) => {
+        setPasted(e.target.value);
+        if (error) setError(null);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          (onSend ?? submitText)();
+        }
+      }}
+      placeholder={placeholder}
+      className="w-full resize-y rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-muted/70 focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20 disabled:opacity-60" />
+
+    </div>;
+
+
+  const linkButton = 'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted transition-colors duration-150 hover:bg-canvas hover:text-ink disabled:opacity-60';
+
+  const footerHint = busy ?
+  '' :
+  initial.suggested && value === initial.value ?
+  'Filled in from what you shared. Press Enter to keep it, or edit.' :
+  step.kind === 'resume' && pasting ?
+  'Ctrl + Enter to send' :
+  isTyped ?
+  'Enter to send' :
+  '';
 
   return (
     <div className="rounded-2xl border border-line bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.12)]">
@@ -96,39 +194,62 @@ export function Composer({ step, initialValue, isEditing, onSubmit, onSkip, onCa
       {step.kind === 'resume' &&
       <>
           {fileInput}
-          <button
-          type="button"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragging(false);
-            onFile(e.dataTransfer.files[0]);
-          }}
-          className={`flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center transition-colors duration-150 ${
-          dragging ? 'border-navy bg-navy-50' : 'border-line hover:border-navy-200 hover:bg-canvas'}`
-          }>
-          
-            {busy ?
-          <>
-                <Loader2Icon className="h-5 w-5 animate-spin text-navy" aria-hidden="true" />
-                <span className="text-sm font-medium text-ink">Reading your resume…</span>
-              </> :
+          {busy ?
+        <div className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-navy-200 bg-canvas px-4 py-8 text-center" role="status">
+              <Loader2Icon className="h-5 w-5 animate-spin text-navy" aria-hidden="true" />
+              <span className="text-sm font-medium text-ink">{readingLabel}</span>
+            </div> :
+        pasting ?
+        <>
+              {pasteBox('Paste your resume text', 'Paste the full text of your resume here…', submitPastedResume)}
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button type="button" onClick={() => setPasting(false)} className={linkButton}>
+                  <FileTextIcon className="h-4 w-4" aria-hidden="true" />
+                  Upload a PDF instead
+                </button>
+                <button
+              type="button"
+              onClick={submitPastedResume}
+              aria-label="Send resume text"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-colors duration-150 hover:bg-navy">
 
-          <>
+                  <ArrowUpIcon className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            </> :
+
+        <>
+              <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              void onFile(e.dataTransfer.files[0]);
+            }}
+            className={`flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center transition-colors duration-150 ${
+            dragging ? 'border-navy bg-navy-50' : 'border-line hover:border-navy-200 hover:bg-canvas'}`
+            }>
+
                 <FileTextIcon className="h-5 w-5 text-muted" aria-hidden="true" />
                 <span className="text-sm font-medium text-ink">
                   Drop your resume here, or <span className="text-navy underline underline-offset-2">browse</span>
                 </span>
                 <span className="text-xs text-muted">{step.helper}</span>
-              </>
-          }
-          </button>
+              </button>
+              <div className="pt-1">
+                <button type="button" onClick={() => setPasting(true)} className={linkButton}>
+                  <ClipboardPasteIcon className="h-4 w-4" aria-hidden="true" />
+                  or paste your resume text
+                </button>
+              </div>
+            </>
+        }
         </>
       }
 
@@ -141,7 +262,7 @@ export function Composer({ step, initialValue, isEditing, onSubmit, onSkip, onCa
             disabled={busy}
             onClick={() => fileRef.current?.click()}
             className="flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
-            
+
               {busy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ImagePlusIcon className="h-4 w-4" aria-hidden="true" />}
               Upload a photo
             </button>
@@ -149,7 +270,7 @@ export function Composer({ step, initialValue, isEditing, onSubmit, onSkip, onCa
             type="button"
             onClick={onSkip}
             className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas">
-            
+
               Add later
             </button>
           </div>
@@ -166,29 +287,30 @@ export function Composer({ step, initialValue, isEditing, onSubmit, onSkip, onCa
           className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors duration-150 ${
           value === option ? 'border-navy bg-navy-50 text-navy' : 'border-line text-ink hover:border-navy-200 hover:bg-canvas'}`
           }>
-          
+
               {option}
             </button>
         )}
         </div>
       }
 
-      {(step.kind === 'text' || step.kind === 'url') &&
+      {isTyped &&
       <form
         onSubmit={(e) => {
           e.preventDefault();
           submitText();
         }}
         className="flex items-end gap-2">
-        
+
           <label htmlFor={`answer-${step.id}`} className="sr-only">
             {step.prompt}
           </label>
           <textarea
           id={`answer-${step.id}`}
-          autoFocus
+          autoFocus={!pasting}
           rows={step.multiline ? 3 : 1}
           value={value}
+          disabled={busy}
           onChange={(e) => {
             setValue(e.target.value);
             if (error) setError(null);
@@ -201,16 +323,59 @@ export function Composer({ step, initialValue, isEditing, onSubmit, onSkip, onCa
           }}
           placeholder={step.placeholder}
           aria-invalid={Boolean(error)}
-          className="min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-[15px] text-ink placeholder:text-muted/70 focus:outline-none" />
-        
+          className="min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-[15px] text-ink placeholder:text-muted/70 focus:outline-none disabled:opacity-60" />
+
           <button
           type="submit"
+          disabled={busy}
           aria-label="Send answer"
-          className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-colors duration-150 hover:bg-navy">
-          
-            <ArrowUpIcon className="h-4 w-4" aria-hidden="true" />
+          className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
+
+            {busy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowUpIcon className="h-4 w-4" aria-hidden="true" />}
           </button>
         </form>
+      }
+
+      {step.kind === 'linkedin' &&
+      <div className="border-t border-line pt-2">
+          {fileInput}
+          {attachment ?
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-canvas px-3 py-2 text-sm text-ink">
+              <span className="flex min-w-0 items-center gap-2">
+                <FileTextIcon className="h-4 w-4 shrink-0 text-navy" aria-hidden="true" />
+                <span className="truncate">{attachment.name}</span>
+              </span>
+              <button
+            type="button"
+            disabled={busy}
+            onClick={() => setAttachment(null)}
+            aria-label="Remove LinkedIn PDF"
+            className="shrink-0 rounded p-1 text-muted hover:text-ink">
+
+                <XIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div> :
+
+        <div className="flex flex-wrap items-center gap-1">
+              <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className={linkButton}>
+                <PaperclipIcon className="h-4 w-4" aria-hidden="true" />
+                Upload your LinkedIn PDF
+              </button>
+              <button type="button" disabled={busy} onClick={() => setPasting((p) => !p)} className={linkButton}>
+                <ClipboardPasteIcon className="h-4 w-4" aria-hidden="true" />
+                {pasting ? 'Hide pasted text' : 'or paste profile text'}
+              </button>
+            </div>
+        }
+          {pasting && !attachment && pasteBox('Paste your LinkedIn profile text', 'Paste your LinkedIn About, Experience, and Skills sections…')}
+          <p className="px-1 pt-1.5 text-xs text-muted">{step.helper}</p>
+          {busy &&
+        <p className="flex items-center gap-2 px-1 pt-1.5 text-sm font-medium text-ink" role="status">
+              <Loader2Icon className="h-4 w-4 animate-spin text-navy" aria-hidden="true" />
+              {attachment || pasted.trim() ? readingLabel : 'Saving…'}
+            </p>
+        }
+        </div>
       }
 
       <div className="mt-1 flex min-h-[28px] items-center justify-between gap-3 px-1">
@@ -219,10 +384,15 @@ export function Composer({ step, initialValue, isEditing, onSubmit, onSkip, onCa
             {error}
           </p> :
 
-        <span className="text-xs text-muted">{step.kind === 'text' || step.kind === 'url' ? 'Enter to send' : ''}</span>
+        <span className="text-xs text-muted">{footerHint}</span>
         }
         {step.kind !== 'photo' &&
-        <button type="button" onClick={onSkip} className="shrink-0 text-xs font-medium text-muted transition-colors duration-150 hover:text-ink">
+        <button
+          type="button"
+          onClick={onSkip}
+          disabled={busy}
+          className="shrink-0 text-xs font-medium text-muted transition-colors duration-150 hover:text-ink disabled:opacity-60">
+
             Skip for now
           </button>
         }
