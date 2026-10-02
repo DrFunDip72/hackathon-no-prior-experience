@@ -46,8 +46,17 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
         </div>
 
         <div className="mt-5 flex items-baseline gap-2">
-          <span className="text-2xl font-semibold tabular-nums text-success-700">{item.score}%</span>
-          <span className="text-sm text-muted">match</span>
+          {item.reasons.length > 0 ?
+          <>
+              <span className="text-2xl font-semibold tabular-nums text-success-700">{item.score}%</span>
+              <span className="text-sm text-muted">match</span>
+            </> :
+
+          <>
+              <span className="text-2xl font-semibold tabular-nums text-muted">—</span>
+              <span className="text-sm text-muted">match score needs your profile</span>
+            </>
+          }
         </div>
         <p className="mt-1 text-sm text-ink">
           {item.reason ? item.reason : item.reasons.length ? `Fits your interest in ${item.reasons.join(', ')}.` : 'A general campus event, worth it for broad networking.'}

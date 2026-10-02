@@ -3,12 +3,16 @@
 const o = '-06:00';
 const at = (date, time) => `2026-${date}T${time}:00${o}`;
 
+// Seed rows that were replaced; seed.js deletes them so renames don't leave duplicates behind.
+export const retiredEvents = [{ title: 'CS Hackathon', start: at('10-02', '09:00'), location: 'TMCB' }];
+
 export const seedEvents = [
   {
-    title: 'CS Hackathon', start: at('10-02', '09:00'), end: at('10-02', '21:00'), location: 'TMCB',
+    // Same event as the career-services sheet's "Homecoming Hackathon" (same title/date/location, so they dedupe).
+    title: 'Homecoming Hackathon', start: at('10-02', '08:00'), end: at('10-02', '20:00'), location: 'ESC Annex',
     type: 'hackathon', companies: ['Redo', 'Neighbor', 'Waystar'], fields: ['software engineering', 'product'],
     source: 'cs_dept', source_url: 'https://cs.byu.edu',
-    description: 'All-day CS hackathon in the TMCB. Sponsors Redo, Neighbor, and Waystar have reps on site.'
+    description: 'All-day CS Department hackathon. Sponsors Redo, Neighbor, and Waystar have reps on site.'
   },
   {
     title: 'Fall Career & Internship Fair', start: at('10-06', '10:00'), end: at('10-06', '15:00'), location: 'Wilkinson Student Center Ballroom',

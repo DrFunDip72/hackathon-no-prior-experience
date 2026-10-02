@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Toggle } from '../ui/Toggle';
 import { calendarSources } from '../../data/calendarSources';
@@ -28,6 +28,52 @@ function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
+const CHUNK_SIZE = 4;
+
+function CheckboxGroup({
+  legend,
+  options,
+  selected,
+  onToggle
+}: {
+  legend: string;
+  options: string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const hiddenCount = options.length - CHUNK_SIZE;
+  const visible = showAll || hiddenCount <= 0 ? options : options.slice(0, CHUNK_SIZE);
+
+  return (
+    <fieldset>
+      <legend className="mb-2 text-xs font-semibold text-ink">{legend}</legend>
+      <div className="space-y-1.5">
+        {visible.map((option) =>
+        <label key={option} className="flex cursor-pointer items-center gap-2.5 text-sm text-ink">
+            <input
+            type="checkbox"
+            checked={selected.includes(option)}
+            onChange={() => onToggle(option)}
+            className="h-4 w-4 rounded border-line accent-navy" />
+
+            {option}
+          </label>
+        )}
+      </div>
+      {hiddenCount > 0 &&
+      <button
+        type="button"
+        onClick={() => setShowAll((s) => !s)}
+        className="mt-2 text-xs font-medium text-navy hover:underline">
+
+          {showAll ? 'Show fewer' : `Show ${hiddenCount} more`}
+        </button>
+      }
+    </fieldset>);
+
+}
+
 export function EventFilters({ filters, onChange, onReset, filtersActive, availableIndustries, googleConnected, connectedSources }: EventFiltersProps) {
   return (
     <div className="space-y-7">
@@ -50,40 +96,20 @@ export function EventFilters({ filters, onChange, onReset, filtersActive, availa
         </div>
       </fieldset>
 
-      <fieldset>
-        <legend className="mb-2 text-xs font-semibold text-ink">Type</legend>
-        <div className="space-y-1.5">
-          {TYPES.map((t) =>
-          <label key={t} className="flex cursor-pointer items-center gap-2.5 text-sm text-ink">
-              <input
-              type="checkbox"
-              checked={filters.types.includes(t)}
-              onChange={() => onChange({ ...filters, types: toggle(filters.types, t) })}
-              className="h-4 w-4 rounded border-line accent-navy" />
-            
-              {t}
-            </label>
-          )}
-        </div>
-      </fieldset>
+      <CheckboxGroup
+        legend="Type"
+        options={TYPES}
+        selected={filters.types}
+        onToggle={(t) => onChange({ ...filters, types: toggle(filters.types, t as EventType) })} />
+
 
       {availableIndustries.length > 0 &&
-      <fieldset>
-          <legend className="mb-2 text-xs font-semibold text-ink">Industry</legend>
-          <div className="space-y-1.5">
-            {availableIndustries.map((i) =>
-          <label key={i} className="flex cursor-pointer items-center gap-2.5 text-sm text-ink">
-                <input
-              type="checkbox"
-              checked={filters.industries.includes(i)}
-              onChange={() => onChange({ ...filters, industries: toggle(filters.industries, i) })}
-              className="h-4 w-4 rounded border-line accent-navy" />
-            
-                {i}
-              </label>
-          )}
-          </div>
-        </fieldset>
+      <CheckboxGroup
+        legend="Industry"
+        options={availableIndustries}
+        selected={filters.industries}
+        onToggle={(i) => onChange({ ...filters, industries: toggle(filters.industries, i) })} />
+
       }
 
       <div>

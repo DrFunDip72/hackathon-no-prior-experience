@@ -27,6 +27,11 @@ Doorway (Vite/React front end in `src/`) recommends BYU campus events to CS/IS s
 - **Uncommitted and unpushed on `main`:** all of `api/`, plus front-end changes: new `src/utils/backend.ts` (calls `/recommendations`, maps to `CampusEvent`), `src/vite-env.d.ts`, `.env.example`, `docs/handoff.md`, and edits to `src/types/event.ts`, `src/utils/dates.ts`, `src/utils/matching.ts`, `src/hooks/useEventFeed.ts`, `EventCard.tsx`, `EventDetail.tsx`. `npm run build` passes; `tsc` only shows pre-existing unused-`React` import warnings.
 - The adapter is gated on `VITE_API_URL`: unset means the app uses the old sample data. The Railway front-end service needs `VITE_API_URL` set to the API URL as a build variable. The Profile page's "top events" still uses the static sample events.
 
+## Update (later the same day)
+- Merged to `main` (commit `8c296eb`) and the API redeployed with word-aware field matching. Added the BYU Career Services Google Sheet source (`api/src/ingest-sheet.js`, env `INGEST_SHEET_URLS`, 17 October events, refreshed every 6 h). `docs/api.md` is now the full API reference; keep it updated. Responses are UTC; display in America/Denver.
+- Open question: is the sheet's "Homecoming Hackathon" the same as the seeded "CS Hackathon"? The seed events are placeholders and should be replaced with real ones.
+- Org browsing policy blocks docs.google.com, cs.byu.edu, calendar.byu.edu docs and the Vercel preview in the browser pane; the user is working on getting them allowed.
+
 ## Remaining work
 1. **Merge to main** (the user asked for it; not done yet). Commit the changes, push `main`. This redeploys the front end. Set `VITE_API_URL` on the front-end service first so it uses the real API. Confirm with the user before pushing, since the repo is shared with Justin and Stetson. Commit trailer: `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
 2. Redeploy the API with the latest scoring change, then re-run the demo check against the live URL.

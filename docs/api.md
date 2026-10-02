@@ -6,7 +6,7 @@ The backend for Doorway's events page. It collects campus recruiting and network
 - **Code:** [`api/`](../api) (plain Node ESM, one dependency: `pg`). Hosted on Railway as the `doorway-api` service, with a Railway Postgres database. The front end never talks to the database or to n8n, only to this API.
 - **Auth:** none. CORS is open (`*`). Don't send secrets or anything sensitive in requests.
 - **Format:** JSON in, JSON out. Errors are `{ "error": "message" }` with an HTTP status.
-- **Time zone:** everything is America/Denver. Timestamps are ISO 8601 **with an offset** (`-06:00` MDT until Nov 1 2026, then `-07:00` MST). Parse with `new Date(iso)`; the offset is respected.
+- **Time zone:** the data is America/Denver (MDT, UTC-6, until Nov 1 2026; then MST, UTC-7). **Responses return timestamps in UTC** (`2026-10-02T15:00:00.000Z`); the instants are correct. Parse with `new Date(iso)` and **display in Denver time**, e.g. `date.toLocaleString('en-US', { timeZone: 'America/Denver' })` or `date-fns-tz`, so students see the same clock time regardless of their browser's zone. Requests may send `from`/`to` with any offset.
 
 ---
 
@@ -91,7 +91,7 @@ Submitted events have `source: "user_submission"`. Body size limit is about 12 M
 interface Event {
   id: string;                 // "evt_<12 hex>", stable per event
   title: string;
-  start_at: string;           // ISO 8601 with offset
+  start_at: string;           // ISO 8601, UTC ("...Z")
   end_at: string | null;
   location: string | null;
   type: EventType;
@@ -172,7 +172,8 @@ Everything is normalized to the `Event` shape, deduped by `dedupe_hash`, and ups
 | Source value | Status | How |
 | --- | --- | --- |
 | `byu_calendar` | **Live.** Runs on API boot and every 24 h (env `INGEST_BYU`). | `api/src/ingest-byu.js` calls the public BYU Calendar JSON API one week at a time (the API caps at ~100 events per response), categories Student Life (49), Education (4), Conferences (1006), next 30 days. `api/src/classify.js` tags `type`, `companies` and `fields` by keyword, so most general-calendar events are `other` with no companies. |
-| `cs_dept`, `careerlaunch`, `rollins`, `clubs` | **Seed data only** (17 events in `api/src/seed-events.js`, mostly placeholders; only the Oct 2 2026 CS Hackathon is confirmed). Scrapers not built yet. | Planned: fetch page text, send to the LLM extraction step (needs `ANTHROPIC_API_KEY`). Treat page structure as unstable. |
+| `careerlaunch`, `cs_dept` (from the sheet) | **Live.** Refreshed on API boot and every 6 h (env `INGEST_SHEET_URLS`). | `api/src/ingest-sheet.js` reads the BYU Career Services "Hiring & Networking Events (F2026)" Google Sheet, published as CSV, one tab per month (page: https://careers.byu.edu/hiring-and-networking-events). Rows are info sessions, tabling and hackathons with a named **company**, time, location and host. Each event is listed under several major groups (Engineering, "CS, IS, Math, Data...", Business, All Majors, ...), so duplicates are merged and the groups become `fields`. Host "BYU CS Department" sets `source=cs_dept`, everything else `careerlaunch`. Hackathon rows have no sponsor, so `companies` is empty. Unreadable rows are skipped and logged. **Only the October tab is configured**; add each new month's CSV link (its `gid`) to `INGEST_SHEET_URLS`, comma-separated. |
+| `rollins`, `clubs`, `cs_dept` (scraped) | **Seed data only** (17 events in `api/src/seed-events.js`, mostly placeholders; only the Oct 2 2026 CS Hackathon is confirmed). Scrapers not built yet. | Planned: fetch page text, send to the LLM extraction step (needs `ANTHROPIC_API_KEY`). Treat page structure as unstable. |
 | `user_submission`, `email` | **Built, untested** (`POST /submit`). Blocked on `ANTHROPIC_API_KEY`. | LLM extraction, see `api/src/extract.js`. |
 | `handshake_manual` | Manual entry only. No scraping of Handshake or LinkedIn. | |
 | `byusa` | Not started. | |
@@ -197,7 +198,7 @@ Deploy (from the repo root, with the Railway CLI linked to the project):
 railway up ./api --path-as-root --service doorway-api --ci
 ```
 
-`--path-as-root` matters: without it the CLI uploads the whole repo and builds the front end instead. The start command runs migrations, optionally seeds (`SEED_ON_START`), then starts the server. Service variables: `DATABASE_URL` (reference to the Postgres service), `SEED_ON_START`, `INGEST_BYU`, and `ANTHROPIC_API_KEY` (not set yet; optional `EXTRACT_MODEL`, default `claude-haiku-4-5-20251001`). Never commit keys; set them with `railway variables`.
+`--path-as-root` matters: without it the CLI uploads the whole repo and builds the front end instead. The start command runs migrations, optionally seeds (`SEED_ON_START`), then starts the server. Service variables: `DATABASE_URL` (reference to the Postgres service), `SEED_ON_START`, `INGEST_BYU`, `INGEST_SHEET_URLS` (comma-separated published-sheet CSV links), optional `SHEET_PAGE_URL`, and `ANTHROPIC_API_KEY` (not set yet; optional `EXTRACT_MODEL`, default `claude-haiku-4-5-20251001`). Never commit keys; set them with `railway variables`.
 
 ---
 
@@ -222,5 +223,7 @@ Add a line to the changelog below for each change.
 
 ## Changelog
 
+- 2026-10-02: Added the BYU Career Services sheet source (17 October events: Boeing, Sodexo, Ensign Peak, HXP, Disney College Program, and more) and corrected the docs: responses are UTC, display in America/Denver. The seeded "CS Hackathon" was confirmed to be the sheet's "Homecoming Hackathon" (Oct 2, ESC Annex, 8 AM-8 PM) and was renamed to match, keeping its Redo/Neighbor/Waystar sponsors.
+- 2026-10-02: Upserts now **union** `companies` and `fields` instead of overwriting, so curated sponsors survive re-ingests from sources that don't list them (side effect: a company can't be removed by re-ingesting; delete or edit the row). `seed.js` also deletes retired seed rows listed in `retiredEvents`.
 - 2026-10-02: Initial API: `/health`, `/events`, `/recommendations`, `/submit`; BYU Calendar ingest (daily); 17 seed events; front-end adapter behind `VITE_API_URL`; `relevant_only` option and word-aware field matching.
 - 2026-10-02: Front end: Profile top events on the live API; API order preserved; refetch on profile change; richer `toApiProfile`; `source_url` shown; matched companies first; employer entries for the live companies (Redo, Neighbor, Waystar and others). The data gap report for the API owner is in [`api-requests.md`](./api-requests.md).

@@ -13,6 +13,7 @@ import type { SessionUser, UserState } from '../types/session';
 const USERS_KEY = 'cc_users';
 const SESSION_KEY = 'cc_session';
 const GUEST_DRAFT_KEY = 'cc_onboarding_draft';
+const RECOVERED_PROFILE_KEY = 'cc_recovered_profile';
 const stateKey = (email: string) => `cc_state_${email}`;
 
 interface StoredUser extends SessionUser {
@@ -45,6 +46,25 @@ function readJson<T>(key: string, fallback: T): T {
 function writeJson(key: string, value: unknown): boolean {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Survives the redirect to /login, but not a closed tab: exactly as long as we need it. */
+function readSession<T>(key: string, fallback: T): T {
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeSession(key: string, value: unknown): boolean {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch {
     return false;
@@ -121,6 +141,27 @@ export const api = {
   clearGuestDraft(): void {
     try {
       localStorage.removeItem(GUEST_DRAFT_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+  },
+
+  /**
+   * The profile just built in onboarding, kept just long enough for "Log in instead" to not
+   * throw it away when the email already has an account. Consumed once, by email, on next login.
+   */
+  saveRecoveredProfile(email: string, profile: Profile): boolean {
+    return writeSession(RECOVERED_PROFILE_KEY, { email: email.trim().toLowerCase(), profile });
+  },
+
+  loadRecoveredProfile(email: string): Profile | null {
+    const stored = readSession<{email: string;profile: Profile;} | null>(RECOVERED_PROFILE_KEY, null);
+    return stored && stored.email === email.trim().toLowerCase() ? stored.profile : null;
+  },
+
+  clearRecoveredProfile(): void {
+    try {
+      sessionStorage.removeItem(RECOVERED_PROFILE_KEY);
     } catch {
       /* storage unavailable */
     }

@@ -12,7 +12,10 @@ const COLS = ['id', 'title', 'start_at', 'end_at', 'location', 'type', 'companie
 
 export async function upsertEvent(row, client = pool) {
   const placeholders = COLS.map((_, i) => `$${i + 1}`).join(', ');
-  const updates = COLS.filter((c) => !['id', 'dedupe_hash'].includes(c)).map((c) => `${c} = excluded.${c}`).join(', ');
+  // companies and fields are unioned, not overwritten, so curated sponsors survive a re-ingest from a source that doesn't list them.
+  const union = (c) => `${c} = array(select distinct unnest(events.${c} || excluded.${c}))`;
+  const updates = COLS.filter((c) => !['id', 'dedupe_hash'].includes(c))
+    .map((c) => (c === 'companies' || c === 'fields' ? union(c) : `${c} = excluded.${c}`)).join(', ');
   const { rows } = await client.query(
     `insert into events (${COLS.join(', ')}) values (${placeholders})
      on conflict (dedupe_hash) do update set ${updates}, updated_at = now()
