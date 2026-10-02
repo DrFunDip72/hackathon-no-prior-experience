@@ -51,15 +51,37 @@ curl -s -X POST https://doorway-api-production-db29.up.railway.app/recommendatio
 `{ "ok": true }` when the API and database are up.
 
 ### `GET /events`
-Raw events, no scoring. For debugging and for any plain list or calendar view.
+Raw events, no scoring. For debugging, plain list or calendar views, and re-fetching saved events. **`from`/`to` match events that are still happening**: an event is in the window if it ends after `from` (no end time counts as 1 hour) and starts before `to`, so today's hackathon still shows at 3 pm.
 
 | Query param | Meaning | Default |
 | --- | --- | --- |
 | `from` | ISO date/time, inclusive lower bound on `start_at` | now |
 | `to` | ISO date/time, exclusive upper bound | `from` + 21 days |
 | `company` | Only events listing this company (case-insensitive, exact name) | none |
+| `ids` | Comma-separated event ids (max 100). Ignores `from`/`to`/`company`. Use it to load a student's saved events ("My plan") even when they've dropped out of the ranked feed. Unknown ids are silently omitted. | none |
 
 Returns `Event[]` ordered by `start_at`. Example: `GET /events?company=redo&to=2026-12-01`.
+
+### `GET /events/:id`
+One event by id (`evt_...`), same shape as `Event`. `404 { "error": "event not found" }` if unknown. For shareable event links.
+
+### `GET /companies`
+The companies directory: curated rows plus every company and graduate program seen on an upcoming event, with how many upcoming events each has. Sorted by `upcoming_event_count` desc, then name. Use it for logos and brand colors, and for onboarding company pickers (names are canonical, so `target_companies` matches).
+
+```ts
+interface Company {
+  name: string;               // canonical; matches Event.companies / Event.programs
+  aliases: string[];          // lowercase variants the API resolves, e.g. "redo tech"
+  kind: 'employer' | 'grad_program' | 'campus_org';
+  industry: string | null;
+  website: string | null;     // not filled yet
+  careers_url: string | null; // not filled yet
+  logo_url: string | null;    // not filled yet: use initials + brand_color until it is
+  brand_color: string | null; // hex, e.g. "#E5484D"
+  upcoming_event_count: number;
+}
+```
+Industry and brand color are seeded from the front end's `src/data/employers.ts`. Logos and websites are `null` until someone supplies verified ones.
 
 ### `POST /recommendations`
 Ranks events for one student. Request body is the **profile contract** plus options:
@@ -95,11 +117,17 @@ interface Event {
   end_at: string | null;
   location: string | null;
   type: EventType;
-  companies: string[];        // canonical names, only companies explicitly named as attending/sponsoring/recruiting
+  companies: string[];        // canonical employer names, alphabetical (in /recommendations: matched companies first, then alphabetical). Deduped; no graduate programs
+  programs: string[];         // graduate schools / degree programs (e.g. "Carnegie Mellon MSCF"), kept out of companies
   fields: string[];           // lowercase career fields
   source: Source;
   source_url: string | null;  // link back to the original listing
   description: string | null; // raw text, can be long, may contain stray whitespace
+  verified: boolean;          // false = unconfirmed (submitted by a person or read by an LLM, or a placeholder). Show an "Unconfirmed" badge or hide. True for every ingested source
+  people: EventPerson[];      // recruiters/alumni/speakers named on the listing; EMPTY for now (no source provides them yet)
+  registration_url: string | null;      // sign-up link; null when no source has one (source_url is the listing page)
+  rsvp_required: boolean | null;
+  registration_deadline: string | null; // ISO, UTC
   dedupe_hash: string;        // sha256(lower(title) + local date + lower(location))
   created_at: string;
   updated_at: string;
@@ -110,6 +138,18 @@ type EventType = 'career_fair' | 'hackathon' | 'info_session' | 'lecture' | 'tab
 
 type Source = 'byu_calendar' | 'cs_dept' | 'careerlaunch' | 'rollins' | 'byusa'
             | 'clubs' | 'handshake_manual' | 'email' | 'user_submission';
+
+interface EventPerson {
+  id: string;                    // "per_<8 hex>", stable per name + company
+  name: string;
+  title: string | null;
+  company: string | null;        // canonical, matches Event.companies
+  kind: 'recruiter' | 'alumni' | 'speaker' | 'club_lead' | 'host';
+  byu_connection: string | null; // "BYU CS '20"
+  tags: string[];                // lowercase focus areas
+  linkedin_url: string | null;   // only if public on the listing
+  source: 'listing' | 'employer_submitted' | 'manual';
+}
 
 interface Recommendation {
   event: Event;
@@ -224,6 +264,7 @@ Add a line to the changelog below for each change.
 
 ## Changelog
 
+- 2026-10-02: Front-end team's requests (see `docs/api-requests.md`): `/events` and `/recommendations` now include events still in progress; `verified` flag (false for submissions and unconfirmed rows); `companies` cleaned (deduped, alphabetical, matched-first in `/recommendations`, subtitles like "- Networking Readiness" stripped, graduate programs moved to new `programs`); new `people`, `registration_url`, `rsvp_required`, `registration_deadline` fields (empty until a source provides them; upserts only fill gaps); new `GET /events/:id`, `GET /events?ids=`, `GET /companies`. Upserts merge `verified` as "verified once any trusted source lists it".
 - 2026-10-02: Added the CS department source (`ingest-cs.js`: listing, event pages, per-event ICS) and automatic sheet tab discovery (the September tab added 5 events). BYU Calendar events are now classified using their `TagsNames` too. Removed the 16 fake placeholder seed events; the only seed left is the real Homecoming Hackathon with its sponsors. The live event count is now about 80 for Sep 1 to Dec 31.
 - 2026-10-02: Added the BYU Career Services sheet source (17 October events: Boeing, Sodexo, Ensign Peak, HXP, Disney College Program, and more) and corrected the docs: responses are UTC, display in America/Denver. The seeded "CS Hackathon" was confirmed to be the sheet's "Homecoming Hackathon" (Oct 2, ESC Annex, 8 AM-8 PM) and was renamed to match, keeping its Redo/Neighbor/Waystar sponsors.
 - 2026-10-02: Upserts now **union** `companies` and `fields` instead of overwriting, so curated sponsors survive re-ingests from sources that don't list them (side effect: a company can't be removed by re-ingesting; delete or edit the row). `seed.js` also deletes retired seed rows listed in `retiredEvents`.

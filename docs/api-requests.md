@@ -17,6 +17,20 @@ From the front-end team (Campus Connect / Doorway) to the events API owner. Writ
 >
 > Details, field shapes and examples are below.
 
+## Status (updated by the API owner)
+
+| Request | Status |
+| --- | --- |
+| P0-1 In-progress events | **Done.** `from`/`to` now include events that end after `from`. |
+| P0-2 `verified` flag | **Done.** `verified: boolean` on every event. The 16 placeholder seed events were deleted, so only real sources remain. `false` is used for submissions (`/submit`, email). |
+| P0-3 Clean `companies` | **Done.** Deduped and alphabetical (matched-first in `/recommendations`); graduate programs moved to new `programs`; subtitles stripped. |
+| P1-1 People per event | **Field added, no data yet.** `people: []` on every event. No source lists recruiters publicly; it will fill as sources (listing text via LLM, employer submissions) are added. |
+| P1-2 Registration | **Field added** (`registration_url`, `rsvp_required`, `registration_deadline`), all null for now. |
+| P1-3 Fetch by id | **Done.** `GET /events/:id` and `GET /events?ids=`. |
+| P1-4 `GET /companies` | **Done**, with industry and brand color; logos/websites are null until verified ones exist. |
+| P1-5 percent, P1-6 audience, P1-7 profile fields | Not started. |
+| P2 | Sources: BYU calendar, career-services sheet (all month tabs) and CS department are live. See `api.md`. |
+
 ---
 
 ## 1. What the API returns today (real payload)

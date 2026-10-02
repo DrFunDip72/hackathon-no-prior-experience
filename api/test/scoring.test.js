@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { scoreEvent, recommend } from '../src/scoring.js';
-import { denverIso, dedupeHash, toEventRow } from '../src/event.js';
+import { denverIso, dedupeHash, toEventRow, normalizePeople } from '../src/event.js';
 import { parseExtraction } from '../src/extract.js';
 
 const now = new Date('2026-10-02T08:00:00-06:00');
@@ -69,4 +69,34 @@ test('field matching is word-aware and relevant_only drops unmatched noise', () 
   const noise = { title: 'Poetry Night', start_at: '2026-10-03T19:00:00-06:00', type: 'other', companies: [], fields: [], description: '' };
   assert.equal(recommend([noise, hackathon], p, { now }).length, 2);
   assert.deepEqual(recommend([noise, hackathon], p, { now, relevantOnly: true }).map((r) => r.event.title), ['CS Hackathon']);
+});
+
+test('in-progress events stay in the window and companies lead with matches', () => {
+  const live = { ...hackathon, end_at: '2026-10-02T20:00:00-06:00', companies: ['Waystar', 'Neighbor', 'Redo'] };
+  const later = new Date('2026-10-02T15:00:00-06:00');
+  const out = recommend([live], { target_companies: ['Redo'] }, { now: later, from: later.toISOString() });
+  assert.equal(out.length, 1);
+  assert.deepEqual(out[0].event.companies, ['Redo', 'Neighbor', 'Waystar']);
+  const ended = recommend([live], { target_companies: ['Redo'] }, { from: '2026-10-02T21:00:00-06:00' });
+  assert.equal(ended.length, 0);
+});
+
+test('toEventRow separates grad programs, strips subtitles, sorts, and flags submissions unverified', () => {
+  const row = toEventRow({
+    title: 'X', start: '2026-10-28 16:00:00', source: 'careerlaunch',
+    companies: ['Sodexo', 'Disney College Program - Networking Readiness', 'Duke University Pratt School of Engineering Graduate School', 'Carnegie Mellon MSCF', 'Disney College Program']
+  });
+  assert.deepEqual(row.companies, ['Disney College Program', 'Sodexo']);
+  assert.deepEqual(row.programs, ['Carnegie Mellon MSCF', 'Duke Pratt School of Engineering']);
+  assert.equal(row.verified, true);
+  assert.equal(toEventRow({ title: 'Y', start: '2026-10-28 16:00:00', source: 'user_submission' }).verified, false);
+});
+
+test('people are normalized with stable ids and only kept when named', () => {
+  const people = normalizePeople([{ name: ' Ash Nguyen ', company: 'Qualtrics Inc', kind: 'recruiter', tags: ['Product'] }, { title: 'no name' }]);
+  assert.equal(people.length, 1);
+  assert.equal(people[0].name, 'Ash Nguyen');
+  assert.match(people[0].id, /^per_[0-9a-f]{8}$/);
+  assert.deepEqual(people[0].tags, ['product']);
+  assert.equal(people[0].kind, 'recruiter');
 });

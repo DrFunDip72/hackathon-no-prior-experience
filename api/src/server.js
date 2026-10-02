@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { pool, queryEvents, upsertEvent } from './db.js';
+import { pool, queryEvents, queryEventsByIds, queryCompanies, upsertEvent } from './db.js';
 import { recommend, DEFAULT_WINDOW_DAYS } from './scoring.js';
 import { extractEvent, buildSubmissionRow } from './extract.js';
 import { ingestByu } from './ingest-byu.js';
@@ -49,9 +49,13 @@ const routes = {
   },
 
   'GET /events': async (req, url) => {
+    const ids = url.searchParams.get('ids');
+    if (ids) return queryEventsByIds(ids.split(',').map((i) => i.trim()).filter(Boolean).slice(0, 100));
     const { start, end } = dateWindow({ from: url.searchParams.get('from'), to: url.searchParams.get('to') });
     return queryEvents({ from: start, to: end, company: url.searchParams.get('company') });
   },
+
+  'GET /companies': async () => queryCompanies(),
 
   'POST /recommendations': async (req) => {
     const { from, to, relevant_only: relevantOnly, ...profile } = await readJson(req);
@@ -77,7 +81,12 @@ const routes = {
 createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return send(res, 204, {});
   const url = new URL(req.url, 'http://localhost');
-  const handler = routes[`${req.method} ${url.pathname}`];
+  const byId = req.method === 'GET' ? /^\/events\/([\w-]+)$/.exec(url.pathname) : null;
+  const handler = byId ? async () => {
+    const [event] = await queryEventsByIds([byId[1]]);
+    if (!event) throw fail(404, 'event not found');
+    return event;
+  } : routes[`${req.method} ${url.pathname}`];
   if (!handler) return send(res, 404, { error: 'not found' });
   try {
     send(res, 200, await handler(req, url));

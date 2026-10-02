@@ -1,4 +1,4 @@
-import { companyKey, canonicalCompany } from './aliases.js';
+import { companyKey, canonicalCompany, sortNames } from './aliases.js';
 
 const DAY_MS = 86_400_000;
 const BOOSTED_TYPES = ['career_fair', 'info_session', 'hackathon'];
@@ -48,14 +48,24 @@ function buildReason(event, companies, fields, targetCount) {
   return parts.join(' ');
 }
 
+// Matched target companies first, then the rest alphabetically, so cards lead with what the student cares about.
+const orderCompanies = (companies, matched) => {
+  const hit = new Set(matched.map((c) => c.toLowerCase()));
+  return [...sortNames(companies.filter((c) => hit.has(c.toLowerCase()))), ...sortNames(companies.filter((c) => !hit.has(c.toLowerCase())))];
+};
+
+// Events still happening count as in the window; no end time means one hour.
+const endOf = (e) => (e.end_at ? new Date(e.end_at) : new Date(new Date(e.start_at).getTime() + 3_600_000));
+
 // relevantOnly drops events that match nothing and aren't a fair/info session/hackathon (keeps a feed free of noise).
 export function recommend(events, profile, { from, to, now = new Date(), relevantOnly = false } = {}) {
   const start = from ? new Date(from) : now;
   const end = to ? new Date(to) : new Date(start.getTime() + DEFAULT_WINDOW_DAYS * DAY_MS);
   const windowDays = Math.max(1, (end - start) / DAY_MS);
   return events
-    .filter((e) => new Date(e.start_at) >= start && new Date(e.start_at) < end)
+    .filter((e) => endOf(e) > start && new Date(e.start_at) < end)
     .map((event) => ({ event, ...scoreEvent(event, profile, { now: start, windowDays }) }))
+    .map((r) => ({ ...r, event: { ...r.event, companies: orderCompanies(r.event.companies ?? [], r.matched_companies) } }))
     .filter((r) => r.score >= 1)
     .filter((r) => !relevantOnly || r.matched_companies.length || r.matched_fields.length || BOOSTED_TYPES.includes(r.event.type))
     .sort((a, b) => b.score - a.score);
