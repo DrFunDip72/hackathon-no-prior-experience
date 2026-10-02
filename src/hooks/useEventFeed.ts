@@ -3,7 +3,7 @@ import { useSession } from '../contexts/SessionContext';
 import { calendarSources } from '../data/calendarSources';
 import { buildSchedule } from '../data/schedule';
 import { api } from '../utils/api';
-import { API_URL, fetchEventsByIds, fetchRecommendedEvents, toApiProfile } from '../utils/backend';
+import { API_URL, fetchEventsByIds, fetchRecentEvents, fetchRecommendedEvents, toApiProfile } from '../utils/backend';
 import { daysFromToday } from '../utils/dates';
 import { AI_GOOD_MATCH, AI_STRONG_MATCH, getProfileTerms, isGoodMatch, isHiddenFromFeed, scoreEvent } from '../utils/matching';
 import { cachedScores, fetchAiScores, rankKey, type AiScores } from '../utils/aiRank';
@@ -24,6 +24,9 @@ export interface FeedFilters {
 export const defaultFilters: FeedFilters = { range: 'month', types: [], industries: [], hideConflicts: false };
 
 const RANGE_DAYS: Record<DateRange, number> = { week: 7, twoWeeks: 14, month: 31 };
+
+/** How far back "My plan" lists ended events a student can mark as attended without having saved them. */
+export const RECENT_DAYS = 14;
 
 /**
  * AI percents for the API's feed (src/utils/aiRank.ts), or null while loading / when AI is unavailable.
@@ -106,7 +109,11 @@ function aiWhyLine(item: ScoredEvent, percent: number, profile: Profile): string
   return `Close to what your profile describes: ${what}${names.length ? ` with ${listOf(names)}` : ''}.`;
 }
 
-export function useEventFeed() {
+/** For an ended event outside the ranked feed: a plain line instead of the "saved, not in your matches" note. */
+const asPast = (item: ScoredEvent): ScoredEvent => ({ ...item, reason: neutralLine(item) });
+
+/** `withRecent` also loads events that ended in the last RECENT_DAYS days (the Events page's "My plan"). */
+export function useEventFeed({ withRecent = false } = {}) {
   const { state } = useSession();
   const profile = state.profile as Profile;
   const [raw, setRaw] = useState<CampusEvent[] | null>(null);
@@ -129,6 +136,20 @@ export function useEventFeed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt, profileKey]);
 
+  // Recently ended events, so a student can say they went to one even if they never saved it.
+  // Optional: if this fails the list just doesn't show. Sample data uses the sample events instead.
+  const [recentRaw, setRecentRaw] = useState<CampusEvent[]>([]);
+  useEffect(() => {
+    if (!withRecent || !API_URL) return;
+    let alive = true;
+    fetchRecentEvents(RECENT_DAYS).
+    then((result) => alive && setRecentRaw(result)).
+    catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [withRecent, attempt]);
+
   // Saved events that dropped out of the ranked feed (outside its window, or relevant_only) are loaded by id,
   // so "My plan" doesn't silently lose them. Each id is requested once per page load; `retry` clears that.
   // Sample data never needs this (nothing drops out).
@@ -136,7 +157,9 @@ export function useEventFeed() {
   const [savedError, setSavedError] = useState(false);
   const requested = useRef(new Set<string>());
   const missingKey = API_URL && raw ?
-  state.addedEventIds.filter((id) => !requested.current.has(id) && !raw.some((e) => e.id === id)).join(',') :
+  state.addedEventIds.
+  filter((id) => !requested.current.has(id) && !raw.some((e) => e.id === id) && !recentRaw.some((e) => e.id === id)).
+  join(',') :
   '';
 
   useEffect(() => {
@@ -162,17 +185,20 @@ export function useEventFeed() {
   const sourcesKey = connectedSources.join(',');
   const showingAllSources = connectedSources.length === 0;
 
-  // Ended events drop out; in-progress ones stay (the API returns them, shown as "Happening now").
-  const apiScored = useMemo(() => {
+  // Every event the feed returned, ended ones included: "My plan" keeps those so the student can mark attendance.
+  const rawScored = useMemo(() => {
     if (!raw) return [];
     const terms = getProfileTerms(profile);
+    return raw.map((e) => scoreEvent(e, profile, terms, schedule));
+  }, [raw, profile, schedule]);
+
+  // The feed drops ended events; in-progress ones stay (the API returns them, shown as "Happening now").
+  const apiScored = useMemo(() => {
     const now = new Date();
-    const scored = raw.
-    map((e) => scoreEvent(e, profile, terms, schedule)).
-    filter((e) => e.end > now);
+    const scored = rawScored.filter((e) => e.end > now);
     // API results arrive ranked best-first; keep that order. Only sample data is ranked here.
     return API_URL ? scored : scored.sort((a, b) => b.score - a.score);
-  }, [raw, profile, schedule]);
+  }, [rawScored]);
 
   const aiScores = useAiScores(profile, apiScored);
 
@@ -190,12 +216,24 @@ export function useEventFeed() {
   }, [apiScored, aiScores, profile]);
 
   // Saved events loaded by id feed only "My plan" below, never "For you": they exist so a saved event
-  // doesn't vanish when it drops out of the ranked feed, not to compete for feed placement.
+  // doesn't vanish when it drops out of the ranked feed (or ends), not to compete for feed placement.
   const savedScored = useMemo(() => {
     const terms = getProfileTerms(profile);
     const now = new Date();
-    return saved.map((e) => scoreEvent(e, profile, terms, schedule)).filter((e) => e.end > now);
+    return saved.map((e) => scoreEvent(e, profile, terms, schedule)).map((e) => e.end <= now ? asPast(e) : e);
   }, [saved, profile, schedule]);
+
+  // Events that ended in the last RECENT_DAYS days, newest first.
+  const recentScored = useMemo(() => {
+    const now = new Date();
+    const since = now.getTime() - RECENT_DAYS * 86_400_000;
+    const terms = getProfileTerms(profile);
+    const pool = API_URL ? recentRaw.map((e) => scoreEvent(e, profile, terms, schedule)) : rawScored;
+    return pool.
+    filter((e) => e.end <= now && e.end.getTime() > since).
+    map(asPast).
+    sort((a, b) => b.start.getTime() - a.start.getTime());
+  }, [recentRaw, rawScored, profile, schedule]);
 
   const fromSources = useMemo(
     () => allScored.filter((s) => showingAllSources || connectedSources.includes(s.event.sourceId)),
@@ -225,13 +263,23 @@ export function useEventFeed() {
     return { top: items.filter(isGoodMatch), weaker: items.filter((i) => !isGoodMatch(i)) };
   }, [items]);
 
+  // Every saved event, ended ones included (Events splits them into upcoming, to mark, and past).
+  // Prefer the ranked copy (it has the AI percent), then any other copy we have.
   const planned = useMemo(
     () => {
-      const ranked = allScored.filter((s) => state.addedEventIds.includes(s.event.id));
-      const extra = savedScored.filter((s) => state.addedEventIds.includes(s.event.id) && !ranked.some((r) => r.event.id === s.event.id));
-      return [...ranked, ...extra].sort((a, b) => a.start.getTime() - b.start.getTime());
+      const byId = new Map<string, ScoredEvent>();
+      for (const s of [...allScored, ...rawScored, ...recentScored, ...savedScored]) if (!byId.has(s.event.id)) byId.set(s.event.id, s);
+      return state.addedEventIds.
+      flatMap((id) => byId.get(id) ?? []).
+      sort((a, b) => a.start.getTime() - b.start.getTime());
     },
-    [allScored, savedScored, state.addedEventIds]
+    [allScored, rawScored, recentScored, savedScored, state.addedEventIds]
+  );
+
+  /** Recently ended events not in the plan, for "Went to something you didn't save?". */
+  const recent = useMemo(
+    () => recentScored.filter((s) => !state.addedEventIds.includes(s.event.id)),
+    [recentScored, state.addedEventIds]
   );
 
   const availableIndustries = useMemo(() => unique(scored.flatMap((s) => s.event.industries)).sort(), [scored]);
@@ -259,6 +307,7 @@ export function useEventFeed() {
     /** Events left out of the feed as off-topic (see isHiddenFromFeed). */
     hiddenCount: fromSources.length - scored.length,
     planned,
+    recent,
     /** Some saved events couldn't be loaded by id; `retry` tries again. */
     plannedError: savedError,
     filters,

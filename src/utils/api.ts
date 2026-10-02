@@ -30,7 +30,7 @@ export class ApiError extends Error {
   }
 }
 
-export const emptyState: UserState = { profile: null, draft: null, connections: {}, addedEventIds: [] };
+export const emptyState: UserState = { profile: null, draft: null, connections: {}, addedEventIds: [], attendance: {} };
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -168,6 +168,7 @@ export const api = {
   },
 
   loadState(email: string): UserState {
+    // Spread over emptyState so fields added later (attendance) get their defaults on older saved states.
     return { ...emptyState, ...readJson<Partial<UserState>>(stateKey(email), {}) };
   },
 

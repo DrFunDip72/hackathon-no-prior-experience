@@ -40,6 +40,7 @@ export function Profile() {
   // Same ranked feed as the Events page (live API when VITE_API_URL is set), fetched once per profile change.
   const feed = useEventFeed();
   const topEvents = feed.items.slice(0, 3);
+  const attendedCount = Object.values(state.attendance).filter((a) => a === 'attended').length;
 
   const hasCalendars = Object.values(state.connections).some(Boolean);
   const sectionProps = { profile, editable, onSave: save };
@@ -154,6 +155,11 @@ export function Profile() {
               )}
               </ul>
             }
+            {/* Marked on the Events page, under My plan. */}
+            <p className="mt-2 flex items-center justify-between border-t border-line pt-3 text-sm">
+              <span className="text-muted">Events attended</span>
+              <span className="font-semibold tabular-nums text-ink">{attendedCount}</span>
+            </p>
             <Link
               to={hasCalendars ? '/events' : '/connect'}
               className="mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">

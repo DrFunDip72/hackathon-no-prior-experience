@@ -198,7 +198,7 @@ Wiring already exists; extend it rather than duplicating it.
 
 | File | Role |
 | --- | --- |
-| [`src/utils/backend.ts`](../src/utils/backend.ts) | Calls `POST /recommendations` and `GET /events?ids=`, loads `GET /companies` once per page load, maps responses to the UI's `CampusEvent` type, and maps the Doorway `Profile` onto the profile contract. Exports `API_URL`, `fetchRecommendedEvents(profile)` and `fetchEventsByIds(ids)`. |
+| [`src/utils/backend.ts`](../src/utils/backend.ts) | Calls `POST /recommendations` and `GET /events?ids=`, loads `GET /companies` once per page load, maps responses to the UI's `CampusEvent` type, and maps the Doorway `Profile` onto the profile contract. Exports `API_URL`, `fetchRecommendedEvents(profile)`, `fetchEventsByIds(ids)` and `fetchRecentEvents(days)` (`GET /events?from=&to=now`: ended events for "My plan", where a student marks attendance; attendance is stored only in the browser). |
 | [`src/hooks/useEventFeed.ts`](../src/hooks/useEventFeed.ts) | Uses `fetchRecommendedEvents` when `VITE_API_URL` is set, otherwise falls back to the simulated sample events (`api.fetchEvents`). Loads saved "My plan" ids missing from the feed with `fetchEventsByIds`, once per id per page load (`retry` tries again). |
 | [`src/utils/matching.ts`](../src/utils/matching.ts) | `scoreEvent` uses the API's score and reasons when the event carries `apiScore`, and the event's `people` when present. `matchLabel` turns a score into "Strong match" / "Good match" / "Worth a look". |
 | [`src/utils/dates.ts`](../src/utils/dates.ts) | All date/time formatting, in America/Denver via `Intl`. |

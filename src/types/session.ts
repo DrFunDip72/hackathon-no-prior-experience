@@ -12,4 +12,8 @@ export interface UserState {
   draft: OnboardingDraft | null;
   connections: Partial<Record<CalendarId, boolean>>;
   addedEventIds: string[];
+  /** Whether the student went to a past event, by event id. Unmarked events aren't listed. */
+  attendance: Record<string, Attendance>;
 }
+
+export type Attendance = 'attended' | 'missed';

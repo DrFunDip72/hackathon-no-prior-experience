@@ -1,6 +1,7 @@
 import React from 'react';
 import { Availability } from './Availability';
 import { AddToCalendarButton } from './AddToCalendarButton';
+import { AttendanceActions, type AttendanceControl } from './AttendanceActions';
 import { EventBadges } from './EventBadges';
 import { MatchBreakdown } from './MatchBreakdown';
 import { Avatar } from '../ui/Avatar';
@@ -17,6 +18,8 @@ interface EventCardProps {
   googleConnected: boolean;
   onSelect: () => void;
   onAdd: () => void;
+  /** For an ended event (row only): asks whether the student went, in place of the Add button. */
+  attendance?: AttendanceControl;
 }
 
 function whyLine(item: ScoredEvent): string {
@@ -24,7 +27,7 @@ function whyLine(item: ScoredEvent): string {
   return item.reasons.length ? `Matches ${item.reasons.join(', ')}` : 'Open campus event, good for general networking';
 }
 
-export function EventCard({ item, variant, selected, added, googleConnected, onSelect, onAdd }: EventCardProps) {
+export function EventCard({ item, variant, selected, added, googleConnected, onSelect, onAdd, attendance }: EventCardProps) {
   const { event } = item;
   const match = eventMatch(item);
   const frame = `cursor-pointer rounded-xl border bg-white transition-colors duration-150 ${
@@ -102,37 +105,41 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
   }
 
   return (
-    <article onClick={onSelect} className={`${frame} flex gap-4 p-4`}>
-      <div className="flex w-12 shrink-0 flex-col items-center rounded-lg bg-canvas py-1.5" aria-hidden="true">
-        <span className="text-[11px] font-medium uppercase text-muted">{formatMonth(item.start)}</span>
-        <span className="text-lg font-semibold tabular-nums leading-tight text-ink">{formatDayOfMonth(item.start)}</span>
-      </div>
+    <article onClick={onSelect} className={`${frame} p-4`}>
+      <div className="flex gap-4">
+        <div className="flex w-12 shrink-0 flex-col items-center rounded-lg bg-canvas py-1.5" aria-hidden="true">
+          <span className="text-[11px] font-medium uppercase text-muted">{formatMonth(item.start)}</span>
+          <span className="text-lg font-semibold tabular-nums leading-tight text-ink">{formatDayOfMonth(item.start)}</span>
+        </div>
 
-      <div className="min-w-0 flex-1">
-        <h3>
-          <button type="button" onClick={onSelect} className="text-left font-semibold leading-snug text-ink">
-            {event.title}
-          </button>
-        </h3>
-        <p className="mt-0.5 truncate text-sm text-muted">
-          {formatDay(item.start)}, {formatTimeRange(item.start, item.end)} · {event.location}
-        </p>
-        <p className="mt-1.5 line-clamp-2 text-sm text-ink">{whyLine(item)}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <EventBadges item={item} />
-          <Availability conflict={item.conflict} googleConnected={googleConnected} />
-          {item.people.length > 0 &&
-          <span className="text-xs text-muted">
-              {item.people.length} {item.people.length === 1 ? 'person' : 'people'} to meet
-            </span>
-          }
+        <div className="min-w-0 flex-1">
+          <h3>
+            <button type="button" onClick={onSelect} className="text-left font-semibold leading-snug text-ink">
+              {event.title}
+            </button>
+          </h3>
+          <p className="mt-0.5 truncate text-sm text-muted">
+            {formatDay(item.start)}, {formatTimeRange(item.start, item.end)} · {event.location}
+          </p>
+          <p className="mt-1.5 line-clamp-2 text-sm text-ink">{whyLine(item)}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <EventBadges item={item} />
+            {!attendance && <Availability conflict={item.conflict} googleConnected={googleConnected} />}
+            {item.people.length > 0 &&
+            <span className="text-xs text-muted">
+                {item.people.length} {item.people.length === 1 ? 'person' : 'people'} to meet
+              </span>
+            }
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end justify-between gap-3">
+          {/* A past event without a score skips the "—" placeholder: there's nothing left to decide. */}
+          {(!attendance || match) && <MatchBreakdown item={item} />}
+          {!attendance && <AddToCalendarButton item={item} added={added} onAdd={onAdd} size="sm" />}
         </div>
       </div>
-
-      <div className="flex shrink-0 flex-col items-end justify-between gap-3">
-        <MatchBreakdown item={item} />
-        <AddToCalendarButton item={item} added={added} onAdd={onAdd} size="sm" />
-      </div>
+      {attendance && <AttendanceActions title={event.title} {...attendance} className="mt-3 border-t border-line pt-3" />}
     </article>);
 
 }

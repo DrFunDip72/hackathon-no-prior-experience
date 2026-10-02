@@ -251,3 +251,11 @@ export async function fetchEventsByIds(ids: string[]): Promise<CampusEvent[]> {
   const events = await getJson<ApiEvent[]>(`/events?ids=${ids.slice(0, 100).map(encodeURIComponent).join(',')}`);
   return events.map((e) => toCampusEvent(e));
 }
+
+/** GET /events for the last `days` days: recent events, so a student can mark one they went to without saving it first. */
+export async function fetchRecentEvents(days: number): Promise<CampusEvent[]> {
+  const now = new Date();
+  const from = new Date(now.getTime() - days * 86_400_000).toISOString();
+  const events = await getJson<ApiEvent[]>(`/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(now.toISOString())}`);
+  return events.map((e) => toCampusEvent(e));
+}

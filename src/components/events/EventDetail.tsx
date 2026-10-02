@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarIcon, ExternalLinkIcon, GraduationCapIcon, MapPinIcon, XIcon } from 'lucide-react';
 import { AddToCalendarButton } from './AddToCalendarButton';
+import { AttendanceActions, type AttendanceControl } from './AttendanceActions';
 import { EventBadges } from './EventBadges';
 import { MatchBreakdown } from './MatchBreakdown';
 import { PersonRow } from './PersonRow';
@@ -18,9 +19,11 @@ interface EventDetailProps {
   onAdd: () => void;
   onRemove: () => void;
   onClose?: () => void;
+  /** For an ended event: whether the student went, in place of Register and Add. */
+  attendance?: AttendanceControl;
 }
 
-export function EventDetail({ item, added, schedule, onAdd, onRemove, onClose }: EventDetailProps) {
+export function EventDetail({ item, added, schedule, onAdd, onRemove, onClose, attendance }: EventDetailProps) {
   const { event } = item;
   const googleConnected = schedule !== null;
   const day = schedule ? scheduleForDay(schedule, item.start) : [];
@@ -152,18 +155,26 @@ export function EventDetail({ item, added, schedule, onAdd, onRemove, onClose }:
       </div>
 
       <div className="border-t border-line bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {event.registrationUrl &&
-        <a
-          href={event.registrationUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-navy bg-white px-4 py-2.5 text-sm font-medium text-navy transition-colors duration-150 hover:bg-navy-50">
+        {attendance ?
+        <>
+            {!attendance.status && <p className="mb-2 text-sm font-medium text-ink">This event has ended. Did you go?</p>}
+            <AttendanceActions title={event.title} {...attendance} />
+          </> :
+        <>
+            {event.registrationUrl &&
+            <a
+              href={event.registrationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-navy bg-white px-4 py-2.5 text-sm font-medium text-navy transition-colors duration-150 hover:bg-navy-50">
 
-            Register
-            <ExternalLinkIcon className="h-3.5 w-3.5" aria-hidden="true" />
-          </a>
+                Register
+                <ExternalLinkIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            }
+            <AddToCalendarButton item={item} added={added} onAdd={onAdd} fullWidth />
+          </>
         }
-        <AddToCalendarButton item={item} added={added} onAdd={onAdd} fullWidth />
         {added &&
         <button type="button" onClick={onRemove} className="mt-2 w-full text-center text-sm text-muted transition-colors duration-150 hover:text-ink">
             Remove from my plan
