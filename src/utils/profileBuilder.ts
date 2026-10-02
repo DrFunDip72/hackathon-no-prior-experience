@@ -1,6 +1,6 @@
 import { employers } from '../data/employers';
 import { industries } from '../data/industries';
-import { stepsFor, VISIBLE_YES } from '../data/onboardingSteps';
+import { canonicalRole, canonicalRoleList, stepsFor, VISIBLE_YES } from '../data/onboardingSteps';
 import { emptyResume, type ResumeData } from '../data/sampleResume';
 import type { OnboardingDraft, StepId } from '../types/onboarding';
 import type { Profile } from '../types/profile';
@@ -68,7 +68,7 @@ function baseFrom(extract: ResumeExtract | null | undefined): ResumeData {
     headline: extract.headline,
     summary: extract.summary,
     year: extract.year,
-    lookingFor: { ...emptyResume.lookingFor, roleTypes: extract.suggestedRoles.slice(0, 3) },
+    lookingFor: { ...emptyResume.lookingFor, roleTypes: unique(extract.suggestedRoles.map(canonicalRole)).slice(0, 3) },
     workAuthorization: '',
     topSkills: extract.topSkills.slice(0, 5),
     experience: extract.experience.map((x) => ({ ...x, id: newId('x') })),
@@ -109,7 +109,7 @@ export function suggestedAnswer(id: StepId, extract: ResumeExtract | null | unde
     case 'linkedin':
       return extract.linkedinUrl;
     case 'roles':
-      return extract.suggestedRoles.filter((r) => !r.includes(',')).slice(0, 3).join(', ');
+      return canonicalRoleList(extract.suggestedRoles.filter((r) => !r.includes(',')).slice(0, 3).join(', '));
     case 'majorYear':
       return [extract.education.major, extract.year.toLowerCase()].filter(Boolean).join(', ');
     case 'experience':
@@ -139,7 +139,7 @@ export function buildProfile(draft: OnboardingDraft, user: SessionUser | null): 
   const goals = answer('goals');
   const companies = unique([...splitList(answer('companies')), ...detectCompanies(goals)]);
   const detectedIndustries = unique([...splitList(answer('industries')), ...detectIndustries(goals)]);
-  const chosenRoles = splitList(answer('roles'));
+  const chosenRoles = splitList(canonicalRoleList(answer('roles')));
   const roleTypes = chosenRoles.length ? chosenRoles : goals ? parseRoles(goals, companies) : [];
   const skills = splitList(answer('skills'));
 

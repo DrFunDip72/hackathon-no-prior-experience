@@ -1,10 +1,42 @@
 import { employers } from './employers';
 import { industries } from './industries';
-import { unique } from '../utils/text';
+import { splitList, unique } from '../utils/text';
 import type { OnboardingDraft, OnboardingStep } from '../types/onboarding';
 import type { ResumeExtract } from '../types/resume';
 
+/**
+ * The role chips every student sees. The broad "Data / analytics" and "UX / design" labels stay (rather than
+ * "Data analyst", "UX designer") because they contain the bare field words the events API tags events with,
+ * so role matching keeps working, and saved profiles and employer data already use them.
+ */
 const ROLE_OPTIONS = ['Software engineer', 'Product manager', 'Data / analytics', 'UX / design'];
+
+/**
+ * Variants of the chip roles, mostly the resume reader's suggestions ("UX designer", "Data analyst"),
+ * mapped onto the chip that covers them, so they don't show up next to it as near-duplicates.
+ */
+const ROLE_ALIASES: Record<string, string> = {
+  'ux designer': 'UX / design',
+  'ux design': 'UX / design',
+  'ux/ui designer': 'UX / design',
+  'ui/ux designer': 'UX / design',
+  'data analyst': 'Data / analytics',
+  'data analytics': 'Data / analytics',
+  'software engineering': 'Software engineer',
+  'software developer': 'Software engineer',
+  'product management': 'Product manager'
+};
+
+/** The chip label for a role ("UX designer" -> "UX / design"); roles without a chip come back trimmed, as typed. */
+export function canonicalRole(role: string): string {
+  const key = role.trim().toLowerCase().replace(/\s+/g, ' ');
+  return ROLE_ALIASES[key] ?? ROLE_OPTIONS.find((o) => o.toLowerCase() === key) ?? role.trim();
+}
+
+/** "UX designer, Data scientist" -> "UX / design, Data scientist", without duplicates. */
+export function canonicalRoleList(value: string): string {
+  return unique(splitList(value).map(canonicalRole)).join(', ');
+}
 
 /** 'Either' is special-cased by matching.ts and the profile page; the rest are shown as-is. */
 export const EMPLOYMENT_OPTIONS = ['Internship', 'Full-time', 'Part-time', 'Either'];
@@ -101,7 +133,7 @@ function rolesStep(extract: ResumeExtract): OnboardingStep {
     prompt: suggested.length ?
     'What roles are you going for? I picked these from your resume. Tap to change them.' :
     'What roles are you going for? Pick any that fit.',
-    options: unique([...suggested, ...ROLE_OPTIONS]),
+    options: unique([...suggested, ...ROLE_OPTIONS].map(canonicalRole)),
     placeholder: 'Other roles, separated by commas'
   };
 }

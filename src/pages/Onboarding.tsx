@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useReducedMotion } from 'framer-motion';
 import { ClipboardPasteIcon, FileTextIcon, RotateCcwIcon, SparklesIcon } from 'lucide-react';
@@ -19,6 +20,7 @@ import type { OnboardingStep } from '../types/onboarding';
 const COMPOSER_GAP = 12;
 
 export function Onboarding() {
+  usePageTitle('Build your profile');
   const { state } = useSession();
   const ob = useOnboarding();
   const [params] = useSearchParams();
@@ -186,7 +188,7 @@ export function Onboarding() {
               <button
               type="button"
               onClick={ob.restart}
-              className="flex items-center gap-1.5 text-sm text-muted transition-colors duration-150 hover:text-ink">
+              className="tap-target flex items-center gap-1.5 text-sm text-muted transition-colors duration-150 hover:text-ink">
 
                 <RotateCcwIcon className="h-3.5 w-3.5" aria-hidden="true" />
                 Start over
@@ -196,7 +198,7 @@ export function Onboarding() {
               type="button"
               onClick={() => setReadyOpen(true)}
               aria-haspopup="dialog"
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-navy transition-colors duration-150 hover:bg-navy-50">
+              className="flex items-center justify-center gap-2 rounded-lg bg-ink px-5 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
 
                 <SparklesIcon className="h-4 w-4" aria-hidden="true" />
                 I’m ready

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowRightIcon, ArrowUpIcon, ClipboardPasteIcon, FileTextIcon, ImagePlusIcon, Loader2Icon, XIcon } from 'lucide-react';
+import { ArrowRightIcon, ArrowUpIcon, CheckIcon,ClipboardPasteIcon, FileTextIcon, ImagePlusIcon, Loader2Icon, XIcon } from 'lucide-react';
 import { isPdf, readAsDataUrl, resizeImage } from '../../utils/files';
 import { takePendingResume } from '../../utils/pendingResume';
 import { splitList, unique } from '../../utils/text';
@@ -197,7 +197,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
     </div>;
 
 
-  const linkButton = 'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted transition-colors duration-150 hover:bg-canvas hover:text-ink disabled:opacity-60';
+  const linkButton = 'tap-target flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted transition-colors duration-150 hover:bg-canvas hover:text-ink disabled:opacity-60';
 
   const footerHint = busy ?
   '' :
@@ -220,7 +220,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
       {isEditing &&
       <div className="mb-2 flex items-center justify-between rounded-lg bg-navy-50 px-3 py-1.5 text-xs text-navy">
           <span className="font-medium">Editing your answer</span>
-          <button type="button" onClick={onCancelEdit} className="flex items-center gap-1 hover:underline">
+          <button type="button" onClick={onCancelEdit} className="tap-target flex items-center gap-1 hover:underline">
             <XIcon className="h-3 w-3" aria-hidden="true" /> Cancel
           </button>
         </div>
@@ -245,7 +245,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
               type="button"
               onClick={submitPastedResume}
               aria-label={`Send ${doc} text`}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-colors duration-150 hover:bg-navy">
+              className="tap-target flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-colors duration-150 hover:bg-navy">
 
                   <ArrowUpIcon className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -273,7 +273,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             type="button"
             disabled={busy}
             onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
+            className="tap-target flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
 
               {busy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ImagePlusIcon className="h-4 w-4" aria-hidden="true" />}
               Upload a photo
@@ -281,7 +281,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             <button
             type="button"
             onClick={onSkip}
-            className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas">
+            className="tap-target rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas">
 
               Add later
             </button>
@@ -296,7 +296,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
           key={option}
           type="button"
           onClick={() => onSubmit(option)}
-          className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors duration-150 ${
+          className={`tap-target rounded-lg border px-4 py-2 text-sm font-medium transition-colors duration-150 ${
           value === option ? 'border-navy bg-navy-50 text-navy' : 'border-line text-ink hover:border-navy-200 hover:bg-canvas'}`
           }>
 
@@ -318,10 +318,11 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
                 type="button"
                 aria-pressed={on}
                 onClick={() => togglePick(option)}
-                className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors duration-150 ${
-                on ? 'border-navy bg-navy-50 text-navy' : 'border-line text-ink hover:border-navy-200 hover:bg-canvas'}`
+                className={`tap-target inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors duration-150 ${
+                on ? 'border-navy bg-navy text-white hover:bg-navy-700' : 'border-line text-ink hover:border-navy-200 hover:bg-canvas'}`
                 }>
 
+                  {on && <CheckIcon className="-ml-0.5 h-4 w-4" aria-hidden="true" />}
                   {option}
                 </button>);
 
@@ -330,7 +331,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             type="button"
             aria-pressed={showOther}
             onClick={() => setShowOther((s) => !s)}
-            className={`rounded-lg border border-dashed px-3.5 py-2 text-sm font-medium transition-colors duration-150 ${
+            className={`tap-target rounded-lg border border-dashed px-3.5 py-2 text-sm font-medium transition-colors duration-150 ${
             showOther ? 'border-navy bg-navy-50 text-navy' : 'border-line text-muted hover:border-navy-200 hover:text-ink'}`
             }>
 
@@ -365,7 +366,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             <button
             type="button"
             onClick={submitChips}
-            className="flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
+            className="tap-target flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
 
               Continue
               <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
@@ -404,13 +405,13 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
           }}
           placeholder={step.placeholder}
           aria-invalid={Boolean(error)}
-          className="min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-[15px] text-ink placeholder:text-muted/70 focus:outline-none disabled:opacity-60" />
+          className="min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-[15px] text-ink placeholder:text-muted/70 disabled:opacity-60" />
 
           <button
           type="submit"
           disabled={busy}
           aria-label="Send answer"
-          className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
+          className="tap-target mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
 
             {busy ? <Loader2Icon className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowUpIcon className="h-4 w-4" aria-hidden="true" />}
           </button>
@@ -430,7 +431,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             // Back to the field, so Enter sends what was just filled in.
             textRef.current?.focus();
           }}
-          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-150 ${
+          className={`tap-target rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-150 ${
           value === option ? 'border-navy bg-navy-50 text-navy' : 'border-line text-muted hover:border-navy-200 hover:text-ink'}`
           }>
 
@@ -453,7 +454,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             disabled={busy}
             onClick={() => setAttachment(null)}
             aria-label="Remove LinkedIn PDF"
-            className="shrink-0 rounded p-1 text-muted hover:text-ink">
+            className="tap-target shrink-0 rounded p-1 text-muted hover:text-ink">
 
                 <XIcon className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
@@ -484,7 +485,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
             type="button"
             disabled={busy}
             onClick={submitText}
-            className="flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
+            className="tap-target flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy disabled:opacity-60">
 
                 {attachment || pasting && pasted.trim() ? 'Read it and continue' : 'Continue'}
                 <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
@@ -507,7 +508,7 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
           type="button"
           onClick={onSkip}
           disabled={busy}
-          className="shrink-0 text-xs font-medium text-muted transition-colors duration-150 hover:text-ink disabled:opacity-60">
+          className="tap-target shrink-0 text-xs font-medium text-muted transition-colors duration-150 hover:text-ink disabled:opacity-60">
 
             Skip for now
           </button>
