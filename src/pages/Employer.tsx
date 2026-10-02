@@ -1,254 +1,195 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ClipboardPasteIcon, FileTextIcon, SparklesIcon } from 'lucide-react';
-import { Logo } from '../components/Logo';
-import { EmployerChatBubble } from '../components/employer/EmployerChatBubble';
-import { EmployerComposer } from '../components/employer/EmployerComposer';
-import { BuildingMatches } from '../components/employer/BuildingMatches';
-import { StudentResultCard } from '../components/employer/StudentResultCard';
-import { employerStepsFor } from '../data/employerSteps';
-import { mockStudents } from '../data/mockStudents';
-import { rankStudents } from '../utils/employerMatching';
-import { readJobSource, stripDataUrl } from '../utils/jobReader';
-import { splitList } from '../utils/text';
-import type { JobSourceInput } from '../components/employer/EmployerComposer';
-import type { EmployerStep, EmployerStepId } from '../data/employerSteps';
-import type { JobExtract } from '../types/job';
-import type { EmployerQuery } from '../types/employer';
+import { useReducedMotion } from 'framer-motion';
+import { ClipboardPasteIcon, FileTextIcon, RotateCcwIcon, SparklesIcon } from 'lucide-react';
+import { AppHeader } from '../components/AppHeader';
+import { HeroBackground } from '../components/landing/HeroBackground';
+import { ChatBubble } from '../components/onboarding/ChatBubble';
+import { Composer } from '../components/onboarding/Composer';
+import { BuildingProfile } from '../components/onboarding/BuildingProfile';
+import { AccountStep } from '../components/onboarding/AccountStep';
+import { ReadyDialog } from '../components/onboarding/ReadyDialog';
+import { useEmployerIntake } from '../hooks/useEmployerIntake';
+import type { EmployerStep } from '../data/employerSteps';
 
-type Phase = 'chat' | 'building' | 'results';
-type Answers = Partial<Record<EmployerStepId, string>>;
+/** Gap kept between the newest message and the top of the pinned composer. */
+const COMPOSER_GAP = 12;
 
 /**
- * Employer side of the demo, built as the same pipeline as student onboarding
- * (src/pages/Onboarding.tsx + src/hooks/useOnboarding.ts, read for reference): upload a document,
- * send it to the same Gemini-backed /api/parse-resume endpoint (kind: 'job'), and pre-fill the rest
- * of the questions from what it finds, exactly as a resume pre-fills a student's roles/companies/
- * skills. No sign-in or verification yet -- "for now let us toggle" -- so this stays publicly
- * reachable.
+ * Employer sign-up: the same page, chat, composer, ready dialog, building screen and account step as
+ * student onboarding (src/pages/Onboarding.tsx), driven by useEmployerIntake instead of useOnboarding.
+ * The job posting takes the resume's place: the AI reader fills in what it can and only the rest is asked.
  */
 export function Employer() {
-  const [extract, setExtract] = useState<JobExtract | null>(null);
-  const [answers, setAnswers] = useState<Answers>({});
-  const [notes, setNotes] = useState<Partial<Record<EmployerStepId, string>>>({});
-  const [stepIndex, setStepIndex] = useState(0);
-  const [editing, setEditing] = useState<EmployerStepId | null>(null);
-  const [phase, setPhase] = useState<Phase>('chat');
+  const intake = useEmployerIntake();
+  const reduceMotion = useReducedMotion();
   const endRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const readyButtonRef = useRef<HTMLButtonElement>(null);
+  const firstScroll = useRef(true);
+  const [readyOpen, setReadyOpen] = useState(false);
+  const { answeredSteps, answers, notes, query } = intake;
 
-  // Recomputed from the extract every render, same as stepsFor(draft) on the student side: once the
-  // posting states an employment type, that question drops out of the list entirely.
-  const steps = employerStepsFor(extract);
-  const answeredSteps = steps.slice(0, stepIndex);
-  const activeIndex = editing ? steps.findIndex((s) => s.id === editing) : stepIndex;
-  const activeStep = steps[activeIndex] ?? null;
-  const complete = stepIndex >= steps.length;
-  const progress = Math.min(stepIndex / steps.length, 1);
-
+  // Keep the newest message (or the answer being edited) and the composer in view, as onboarding does.
+  const scrollKey = [answeredSteps.length, intake.activeStep?.id, intake.editing, intake.complete].join('|');
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [stepIndex, editing]);
+    const target = intake.editing ? document.getElementById(`step-${intake.editing}`) : endRef.current;
+    if (intake.phase !== 'chat' || !target) return;
+    target.style.scrollMarginBottom = `${(composerRef.current?.offsetHeight ?? 0) + COMPOSER_GAP}px`;
+    const instant = firstScroll.current || reduceMotion || document.hidden;
+    target.scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'end' });
+    firstScroll.current = false;
+  }, [scrollKey, intake.phase, reduceMotion]);
 
-  const record = (id: EmployerStepId, value: string, wasEditing: boolean) => {
-    setAnswers((a) => ({ ...a, [id]: value }));
-    if (wasEditing) setEditing(null);else
-    setStepIndex((i) => i + 1);
-  };
-
-  const submit = (value: string) => {
-    if (activeStep) record(activeStep.id, value, editing !== null);
-  };
-
-  const skip = () => {
-    if (activeStep) record(activeStep.id, '', editing !== null);
-  };
-
-  /** The job-posting upload step: reads it with the AI reader, same shape as useOnboarding's submitSource. */
-  const submitSource = async (input: JobSourceInput) => {
-    const wasEditing = editing !== null;
-    const result = await readJobSource(
-      input.dataUrl ? { job: { pdfBase64: stripDataUrl(input.dataUrl) } } : { job: { text: input.text } }
-    );
-    let note: string;
-    if (result.ok) {
-      setExtract(result.data);
-      const { companyName, jobTitle } = result.data;
-      note = companyName || jobTitle ?
-      `Got it: ${[companyName, jobTitle].filter(Boolean).join(' · ')}. I've filled in the next answers from it, so press Enter or Tab to keep each one or edit it.` :
-      "Read it, but couldn't find a clear company or title -- I'll ask a few quick questions.";
-    } else if (result.reason === 'unavailable') {
-      note = "The AI reader isn't configured right now, so I'll ask a few quick questions instead.";
-    } else {
-      note = "I couldn't read that automatically, so I'll ask a few quick questions.";
+  const readyNow = intake.complete && !intake.editing;
+  useEffect(() => {
+    if (!readyNow) {
+      setReadyOpen(false);
+      return;
     }
-    setNotes((n) => ({ ...n, jobPosting: note }));
-    record('jobPosting', input.fileName ?? 'Pasted text', wasEditing);
-  };
+    const t = setTimeout(() => setReadyOpen(true), reduceMotion ? 0 : 450);
+    return () => clearTimeout(t);
+  }, [readyNow, reduceMotion]);
 
-  const initialFor = (step: EmployerStep): string => {
-    if (answers[step.id] !== undefined) return answers[step.id]!;
-    if (step.kind === 'text') return step.suggested;
-    // The skills chips step pre-picks whatever the job-posting extract found.
-    if (step.kind === 'chips' && step.id === 'skills') return (extract?.requiredSkills ?? []).join(', ');
-    return '';
-  };
+  const page = (children: React.ReactNode) =>
+  <div className="relative isolate flex min-h-screen w-full flex-col bg-white">
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
+        <HeroBackground />
+      </div>
+      <AppHeader audience="employer" />
+      {children}
+    </div>;
 
-  const query: EmployerQuery = {
-    companyName: answers.company ?? '',
-    jobTitle: answers.title ?? '',
-    employmentType: (answers.employmentType as EmployerQuery['employmentType']) ?? (extract?.employmentType || ''),
-    skills: splitList(answers.skills ?? ''),
-    lookingFor: answers.lookingFor ?? ''
-  };
-  const results = phase === 'results' ? rankStudents(mockStudents, query) : [];
 
-  const findMatches = () => {
-    setPhase('building');
-    setTimeout(() => setPhase('results'), 900);
-  };
+  if (intake.phase === 'building') {
+    return page(<BuildingProfile usedResume={Boolean(intake.extract)} title="Finding your matches" lastStep="Ranking students who opted in" />);
+  }
+
+  if (intake.phase === 'account') {
+    return page(
+      <AccountStep
+        onSave={intake.saveAccount}
+        onCreated={intake.finish}
+        onBack={intake.backToChat}
+        copy={{
+          title: 'Save your search',
+          blurb: `Your matches for ${query.jobTitle || 'this role'} are ready. Create a recruiter account to see them and reach out.`,
+          submitLabel: 'Create account and see matches',
+          namePlaceholder: 'Alex Rivera',
+          emailPlaceholder: 'you@company.com'
+        }} />
+
+    );
+  }
 
   const renderAnswer = (step: EmployerStep) => {
     const answer = answers[step.id];
-    if (step.kind === 'upload') {
-      if (!answer) return <span className="italic text-muted">Skipped</span>;
-      const pasted = answer === 'Pasted text';
+    if (!answer || answer.skipped) return <span className="italic text-muted">Skipped</span>;
+    if (step.kind === 'resume') {
       return (
         <span className="flex items-center gap-2">
-          {pasted ? <ClipboardPasteIcon className="h-4 w-4 shrink-0 text-navy" aria-hidden="true" /> : <FileTextIcon className="h-4 w-4 shrink-0 text-navy" aria-hidden="true" />}
-          <span className="break-all">{answer}</span>
+          {intake.pasted ?
+          <ClipboardPasteIcon className="h-4 w-4 shrink-0 text-navy" aria-hidden="true" /> :
+          <FileTextIcon className="h-4 w-4 shrink-0 text-navy" aria-hidden="true" />
+          }
+          <span className="break-all">{answer.value}</span>
         </span>);
 
     }
-    if (!answer) return <span className="italic text-muted">Skipped</span>;
-    return <span className="whitespace-pre-wrap break-words">{answer}</span>;
+    return <span className="whitespace-pre-wrap break-words">{answer.value}</span>;
   };
 
-  const header =
-  <header className="bg-white">
-      <div className="mx-auto flex h-16 max-w-2xl items-center justify-between px-6">
-        <Logo />
-        <nav aria-label="Primary" className="flex items-center gap-2">
-          <span className="hidden rounded-full bg-navy-50 px-2.5 py-1 text-xs font-medium text-navy sm:inline-block">
-            Employer view
-          </span>
-          <Link to="/" className="rounded-md px-3 py-2 text-sm font-medium text-ink transition-colors duration-150 hover:bg-canvas">
-            Back to student site
-          </Link>
-        </nav>
-      </div>
-    </header>;
+  const role = [query.jobTitle, query.companyName].filter(Boolean).join(' at ');
+  const summary = `I’ll rank every student who opted in to being found${role ? ` against ${role}` : ''}${
+  query.skills.length ? `, weighing ${query.skills.slice(0, 3).join(', ')}` : ''}. You can change the search anytime.`;
 
-
-  if (phase === 'building') {
-    return (
-      <div className="flex min-h-screen w-full flex-col bg-white">
-        {header}
-        <BuildingMatches usedExtract={Boolean(extract)} />
-      </div>);
-
-  }
-
-  if (phase === 'results') {
-    return (
-      <div className="min-h-screen w-full bg-canvas">
-        {header}
-        <main className="mx-auto max-w-2xl px-6 py-8">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="text-xl font-semibold tracking-tight text-ink">
-              Matches for {query.jobTitle} at {query.companyName}
-            </h1>
-            <button
-              type="button"
-              onClick={() => {
-                setPhase('chat');
-                setStepIndex(0);
-                setAnswers({});
-                setExtract(null);
-                setNotes({});
-              }}
-              className="shrink-0 text-sm font-medium text-navy hover:underline">
-
-              Start over
-            </button>
-          </div>
-          <p className="mt-1 text-sm text-muted">
-            {results.filter((r) => r.score > 0).length} of {results.length} students have a real match.
-          </p>
-          <div className="mt-5 space-y-3">
-            {results.map((item) => <StudentResultCard key={item.student.id} item={item} />)}
-          </div>
-        </main>
-      </div>);
-
-  }
-
-  return (
-    <div className="flex min-h-screen w-full flex-col bg-white">
-      {header}
-      <div className="h-0.5 w-full bg-canvas" role="progressbar" aria-label="Employer intake progress" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
-        <div className="h-full bg-navy transition-[width] duration-300 ease-out" style={{ width: `${progress * 100}%` }} />
+  return page(
+    <>
+      <div className="h-0.5 w-full bg-canvas" role="progressbar" aria-label="Sign-up progress" aria-valuenow={Math.round(intake.progress * 100)} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-full bg-navy transition-[width] duration-300 ease-out" style={{ width: `${intake.progress * 100}%` }} />
       </div>
 
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 sm:px-6">
         <div className="flex-1 space-y-6 py-10" aria-live="polite">
-          <EmployerChatBubble role="assistant">
+          <ChatBubble role="assistant">
             <p>
-              Tell me about the role, and I'll match it against campus students -- their resume, their target companies, the
-              role they're after, and events they've attended.
+              Hi there. Tell me about the role you’re hiring for, and I’ll rank BYU students who chose to be found by their skills,
+              the roles they want, and the companies they’re interested in. Skip anything you don’t have handy.
             </p>
-          </EmployerChatBubble>
+          </ChatBubble>
 
           {answeredSteps.map((step) => {
             const note = notes[step.id];
             return (
-              <div key={step.id} className="space-y-3">
-                <EmployerChatBubble role="assistant">{step.prompt}</EmployerChatBubble>
-                <EmployerChatBubble role="user" onEdit={() => setEditing(step.id)} isEditing={editing === step.id}>
+              <div key={step.id} id={`step-${step.id}`} className="space-y-3">
+                <ChatBubble role="assistant">{step.prompt}</ChatBubble>
+                <ChatBubble role="user" onEdit={() => intake.setEditing(step.id)} isEditing={intake.editing === step.id}>
                   {renderAnswer(step)}
-                </EmployerChatBubble>
-                {note && <EmployerChatBubble role="assistant">{note}</EmployerChatBubble>}
+                </ChatBubble>
+                {note && <ChatBubble role="assistant">{note}</ChatBubble>}
               </div>);
 
           })}
 
-          {!complete && activeStep && !editing &&
-          <EmployerChatBubble key={activeStep.id} role="assistant">
-              {activeStep.prompt}
-            </EmployerChatBubble>
+          {!intake.complete && intake.activeStep && !intake.editing &&
+          <ChatBubble key={intake.activeStep.id} role="assistant">
+              {intake.activeStep.prompt}
+            </ChatBubble>
           }
 
-          {complete && !editing &&
-          <EmployerChatBubble role="assistant">Got it. Ready to see who's a fit?</EmployerChatBubble>
+          {intake.complete && !intake.editing &&
+          <ChatBubble role="assistant">That’s everything I need. Ready to see who fits?</ChatBubble>
           }
-          <div ref={endRef} />
+          <div ref={endRef} aria-hidden="true" />
         </div>
 
-        <div className="sticky bottom-0 bg-white pb-6 pt-2">
-          {activeStep && (!complete || editing) ?
-          <EmployerComposer
-            key={`${activeStep.id}-${editing ?? 'new'}`}
-            step={activeStep}
-            initial={initialFor(activeStep)}
-            isEditing={Boolean(editing)}
-            onSubmit={submit}
-            onSubmitSource={submitSource}
-            onSkip={skip}
-            onCancelEdit={() => setEditing(null)} /> :
+        <div ref={composerRef} className="sticky bottom-0 z-10 bg-gradient-to-t from-white from-70% to-white/0 pb-6 pt-6">
+          {intake.activeStep && (!intake.complete || intake.editing) ?
+          <Composer
+            key={`${intake.activeStep.id}-${intake.editing ?? 'new'}`}
+            step={intake.activeStep}
+            initial={intake.initialValueFor(intake.activeStep.id)}
+            isEditing={Boolean(intake.editing)}
+            onSubmit={intake.submit}
+            onSubmitSource={intake.submitSource}
+            onSkip={intake.skip}
+            onCancelEdit={() => intake.setEditing(null)} /> :
 
 
-          <div className="flex items-center justify-end rounded-2xl border border-line bg-white px-4 py-3">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-3">
               <button
               type="button"
-              onClick={findMatches}
-              className="flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
+              onClick={intake.restart}
+              className="flex items-center gap-1.5 text-sm text-muted transition-colors duration-150 hover:text-ink">
+
+                <RotateCcwIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                Start over
+              </button>
+              <button
+              ref={readyButtonRef}
+              type="button"
+              onClick={() => setReadyOpen(true)}
+              aria-haspopup="dialog"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-navy transition-colors duration-150 hover:bg-navy-50">
 
                 <SparklesIcon className="h-4 w-4" aria-hidden="true" />
-                Find matching students
+                I’m ready
               </button>
             </div>
           }
         </div>
       </main>
-    </div>);
 
+      <ReadyDialog
+        open={readyOpen && intake.phase === 'chat'}
+        summary={summary}
+        actionLabel="Find matching students"
+        onBuild={() => {
+          setReadyOpen(false);
+          void intake.build();
+        }}
+        onClose={() => setReadyOpen(false)}
+        fallbackFocus={readyButtonRef} />
+
+    </>
+  );
 }

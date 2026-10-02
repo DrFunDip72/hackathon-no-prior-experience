@@ -10,6 +10,8 @@ import { Profile } from './pages/Profile';
 import { Events } from './pages/Events';
 import { Connect } from './pages/Connect';
 import { Employer } from './pages/Employer';
+import { EmployerMatches } from './pages/EmployerMatches';
+import { EmployerStudent } from './pages/EmployerStudent';
 
 export function App() {
   return (
@@ -26,6 +28,8 @@ export function App() {
           <Route path="/connect" element={<ProtectedRoute><Connect /></ProtectedRoute>} />
           {/* No verification yet -- "for now let us toggle" -- so this is publicly reachable, same as skipping onboarding. */}
           <Route path="/employer" element={<Employer />} />
+          <Route path="/employer/matches" element={<EmployerMatches />} />
+          <Route path="/employer/students/:id" element={<EmployerStudent />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

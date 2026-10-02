@@ -5,6 +5,7 @@ import { LogOutIcon } from 'lucide-react';
 import { Logo } from './Logo';
 import { Avatar } from './ui/Avatar';
 import { useSession } from '../contexts/SessionContext';
+import { employerStore } from '../utils/employerStore';
 
 const navItems = [
 { to: '/events', label: 'Events' },
@@ -12,7 +13,10 @@ const navItems = [
 { to: '/connect', label: 'Calendars' }];
 
 
-export function AppHeader() {
+const employerNav = [{ to: '/employer/matches', label: 'Matches' }];
+
+/** The site header. `employer` swaps the student nav and account menu for the recruiter's. */
+export function AppHeader({ audience = 'student' }: {audience?: 'student' | 'employer';}) {
   const { user, state, logOut } = useSession();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -32,16 +36,19 @@ export function AppHeader() {
     };
   }, [open]);
 
-  const showNav = Boolean(state.profile);
+  const isEmployer = audience === 'employer';
+  const employer = isEmployer ? employerStore.account() : null;
+  const showNav = isEmployer ? Boolean(employerStore.search()) : Boolean(state.profile);
+  const nav = isEmployer ? employerNav : navItems;
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex items-center gap-8">
-          <Logo to={showNav ? '/events' : '/'} />
+          <Logo to={isEmployer ? '/employer' : showNav ? '/events' : '/'} />
           {showNav &&
-          <nav aria-label="Main" className="hidden items-center gap-1 sm:flex">
-              {navItems.map((item) =>
+          <nav aria-label="Main" className={`items-center gap-1 ${isEmployer ? 'flex' : 'hidden sm:flex'}`}>
+              {nav.map((item) =>
             <NavLink
               key={item.to}
               to={item.to}
@@ -58,7 +65,18 @@ export function AppHeader() {
           }
         </div>
 
-        {!user &&
+        {isEmployer &&
+        <div className="flex items-center gap-3">
+            <span className="hidden rounded-full bg-navy-50 px-2.5 py-1 text-xs font-medium text-navy sm:inline-block">Employer</span>
+            {employer && <Avatar name={employer.name} size="sm" />}
+            <Link to="/" className="whitespace-nowrap text-sm font-medium text-navy hover:underline">
+              <span className="sm:hidden">Students</span>
+              <span className="hidden sm:inline">Back to student site</span>
+            </Link>
+          </div>
+        }
+
+        {!isEmployer && !user &&
         <p className="text-sm text-muted">
             <span className="hidden sm:inline">Already have an account? </span>
             <Link to="/login" className="font-medium text-navy hover:underline">
@@ -67,7 +85,7 @@ export function AppHeader() {
           </p>
         }
 
-        {user &&
+        {!isEmployer && user &&
         <div className="relative" ref={menuRef}>
             <button
             type="button"

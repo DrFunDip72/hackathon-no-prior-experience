@@ -1,137 +1,88 @@
+import { EMPLOYMENT_OPTIONS } from './onboardingSteps';
+import { suggestedSkillsFor } from '../utils/employerMatching';
 import { unique } from '../utils/text';
+import type { ChatStep } from '../types/onboarding';
 import type { JobExtract } from '../types/job';
 
 export type EmployerStepId = 'jobPosting' | 'company' | 'title' | 'employmentType' | 'skills' | 'lookingFor';
 
-export const EMPLOYMENT_TYPE_OPTIONS = ['Internship', 'Full-time', 'Part-time', 'Either'] as const;
+/** Same step shape, Composer and chat as student onboarding; only the questions differ. */
+export type EmployerStep = ChatStep<EmployerStepId>;
 
-interface UploadStep {
-  kind: 'upload';
-  id: 'jobPosting';
-  prompt: string;
-  helper: string;
-}
-
-interface TextStep {
-  kind: 'text';
-  id: EmployerStepId;
-  prompt: string;
-  placeholder: string;
-  /** Recommended text pre-filled into the field, accepted with Enter or Tab. '' means no suggestion exists. */
-  suggested: string;
-  /** Quick-fill options shown as clickable chips below the field; clicking one fills the field with it. */
-  chips?: string[];
-  multiline: boolean;
-  optional: boolean;
-}
-
-interface ChoiceStep {
-  kind: 'choice';
-  id: EmployerStepId;
-  prompt: string;
-  /** Click-to-select options. Clicking one answers the step immediately, same as student onboarding's employment-type step. */
-  options: readonly string[];
-  optional: boolean;
-}
-
-interface ChipsStep {
-  kind: 'chips';
-  id: EmployerStepId;
-  prompt: string;
-  /** Multi-select toggle options; clicked ones are joined into the answer. */
-  options: string[];
-  placeholder: string;
-  optional: boolean;
-}
-
-export type EmployerStep = UploadStep | TextStep | ChoiceStep | ChipsStep;
-
-const jobPosting: UploadStep = {
-  kind: 'upload',
+const jobPosting: EmployerStep = {
   id: 'jobPosting',
-  prompt: "First, drop in the job posting or a company/role blurb. I'll pull out the company, title, employment type, and skills so you don't have to retype them.",
+  kind: 'resume',
+  document: 'job posting',
+  prompt: 'First, drop in the job posting. I’ll pull out the company, role, and skills so you don’t have to retype them.',
   helper: 'PDF, up to 5 MB'
 };
 
-/** Grounded in the companies/roles the mock student pool actually targets, so a clicked chip produces real matches. */
-const COMPANY_CHIPS = ['Qualtrics', 'Redo', 'Neighbor', 'Adobe', 'Domo', 'Waystar'];
-const TITLE_CHIPS = ['Software Engineer', 'Product Manager', 'Data Scientist', 'Product Designer', 'Marketing Associate', 'Backend Engineer'];
-const SKILL_OPTIONS = ['SQL', 'Figma', 'React', 'Python', 'UX research', 'Financial modeling', 'Public speaking', 'Project scheduling'];
+/** Companies and roles the sample student pool actually targets, so a tapped suggestion produces real matches. */
+const COMPANIES = ['Qualtrics', 'Redo', 'Domo', 'Podium', 'Adobe', 'Goldman Sachs', 'Deloitte'];
+const TITLES = ['Software Engineer Intern', 'Product Manager Intern', 'Data Scientist Intern', 'Product Designer', 'Marketing Associate', 'Financial Analyst'];
 
-function companyStep(extract: JobExtract | null): TextStep {
-  return {
-    kind: 'text',
-    id: 'company',
-    prompt: 'What company are you hiring for?',
-    placeholder: 'Qualtrics',
-    suggested: extract?.companyName ?? '',
-    chips: unique([...extract?.companyName ? [extract.companyName] : [], ...COMPANY_CHIPS]),
-    multiline: false,
-    optional: false
-  };
-}
-
-function titleStep(extract: JobExtract | null): TextStep {
-  return {
-    kind: 'text',
-    id: 'title',
-    prompt: 'What job do you want filled?',
-    placeholder: 'Product Manager',
-    suggested: extract?.jobTitle ?? '',
-    chips: unique([...extract?.jobTitle ? [extract.jobTitle] : [], ...TITLE_CHIPS]),
-    multiline: false,
-    optional: false
-  };
-}
-
-const employmentType: ChoiceStep = {
-  kind: 'choice',
-  id: 'employmentType',
-  prompt: 'Is this an internship, full-time, part-time, or open to any of those?',
-  options: EMPLOYMENT_TYPE_OPTIONS,
-  optional: false
+const company: EmployerStep = {
+  id: 'company',
+  kind: 'text',
+  prompt: 'What company are you hiring for?',
+  placeholder: 'Qualtrics',
+  suggestions: COMPANIES,
+  required: true
 };
 
-function skillsStep(extract: JobExtract | null): ChipsStep {
+const title: EmployerStep = {
+  id: 'title',
+  kind: 'text',
+  prompt: 'What role do you want filled?',
+  placeholder: 'Product Manager Intern',
+  suggestions: TITLES,
+  required: true
+};
+
+const employmentType: EmployerStep = {
+  id: 'employmentType',
+  kind: 'choice',
+  prompt: 'Is it an internship, full-time, or part-time role?',
+  options: EMPLOYMENT_OPTIONS,
+  required: true
+};
+
+/** Pre-picked from the posting when there is one; otherwise suggested from the role. */
+function skillsStep(extract: JobExtract | null, jobTitle: string): EmployerStep {
+  const read = extract?.requiredSkills.filter((s) => s.trim()) ?? [];
   return {
-    kind: 'chips',
     id: 'skills',
-    prompt: extract?.requiredSkills.length ?
-    "Which skills matter most? I picked these from the posting -- tap to change them." :
-    'Which skills matter most for this role?',
-    options: unique([...extract?.requiredSkills ?? [], ...SKILL_OPTIONS]),
+    kind: 'chips',
+    prompt: read.length ?
+    'Which skills matter most? I picked these from the posting. Tap to change them.' :
+    'Which skills matter most for this role? Pick any that fit.',
+    options: unique([...read, ...suggestedSkillsFor(jobTitle || extract?.jobTitle || '')]).slice(0, 10),
     placeholder: 'Other skills, separated by commas',
-    optional: false
+    required: true
   };
 }
 
-function lookingForStep(extract: JobExtract | null): TextStep {
-  return {
-    kind: 'text',
-    id: 'lookingFor',
-    prompt: 'Anything else you want us to know about the ideal candidate?',
-    placeholder: 'A junior PM who can run user research and is comfortable with SQL...',
-    suggested: extract?.summary ?? '',
-    multiline: true,
-    optional: true
-  };
-}
+const lookingFor: EmployerStep = {
+  id: 'lookingFor',
+  kind: 'text',
+  prompt: 'Anything else about the ideal candidate? Optional.',
+  placeholder: 'Comfortable running user interviews and writing SQL…',
+  multiline: true
+};
 
 /**
- * The questions to ask, given what the AI reader found. Mirrors stepsFor() in
- * src/data/onboardingSteps.ts: without a read we ask everything with no prefill; after a read,
- * company/title/skills/looking-for are pre-filled (not skipped -- still worth a glance), and
- * employmentType is skipped outright when the posting already states it, same as onboarding
- * skips majorYear/experience/skills once the resume covers them.
+ * The questions to ask, given what the AI reader found. Mirrors stepsFor() in onboardingSteps.ts:
+ * without a read we ask everything; after a read we only ask what's missing, plus the skills to confirm.
  */
-export function employerStepsFor(extract: JobExtract | null): EmployerStep[] {
+export function employerStepsFor(extract: JobExtract | null, jobTitle = ''): EmployerStep[] {
+  const x = extract;
   const steps: (EmployerStep | false)[] = [
   jobPosting,
-  companyStep(extract),
-  titleStep(extract),
-  !extract?.employmentType && employmentType,
-  skillsStep(extract),
-  lookingForStep(extract)];
+  !x?.companyName && company,
+  !x?.jobTitle && title,
+  !x?.employmentType && employmentType,
+  skillsStep(x, jobTitle),
+  !x?.summary && lookingFor];
 
   return steps.filter((s): s is EmployerStep => Boolean(s));
 }
