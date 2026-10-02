@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpIcon, PaperclipIcon } from 'lucide-react';
 import { saveLandingPrompt } from '../../utils/landingPrompt';
+import { useResumeUpload } from './useResumeUpload';
 
 const suggestions = [
 'Product design internship at Adobe',
@@ -18,6 +19,10 @@ export function HeroPrompt({ destination }: {destination: string;}) {
     saveLandingPrompt(text);
     navigate(destination);
   };
+
+  // Students who already have a profile go straight to their events; everyone else picks a file here.
+  const upload = useResumeUpload(() => saveLandingPrompt(value));
+  const canUpload = destination === '/onboarding';
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -46,9 +51,10 @@ export function HeroPrompt({ destination }: {destination: string;}) {
           className="w-full resize-none bg-transparent px-2 py-1.5 text-base text-ink placeholder:text-muted/70 focus:outline-none" />
         
         <div className="flex items-center justify-between pt-1">
+          {canUpload && upload.input}
           <button
             type="button"
-            onClick={() => submit()}
+            onClick={() => canUpload ? upload.open() : submit()}
             className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted transition-colors duration-150 hover:bg-canvas hover:text-ink">
             
             <PaperclipIcon className="h-4 w-4" aria-hidden="true" />

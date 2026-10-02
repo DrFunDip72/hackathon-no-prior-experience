@@ -39,7 +39,8 @@ export function MatchPreview() {
               <p className="mt-1.5 text-lg font-semibold leading-snug tracking-tight text-ink sm:text-xl">{example.reason}</p>
             </div>
             <div className="shrink-0 text-right">
-              <p className={`text-lg font-semibold tracking-tight sm:text-xl ${matchLabel(example.score).className}`}>{matchLabel(example.score).label}</p>
+              <p className={`text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl ${matchLabel(example.score).className}`}>{example.score}%</p>
+              <p className="text-xs text-muted">match</p>
             </div>
           </div>
 

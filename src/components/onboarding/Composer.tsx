@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRightIcon, ArrowUpIcon, ClipboardPasteIcon, FileTextIcon, ImagePlusIcon, Loader2Icon, XIcon } from 'lucide-react';
 import { isPdf, readAsDataUrl, resizeImage } from '../../utils/files';
+import { takePendingResume } from '../../utils/pendingResume';
 import { splitList, unique } from '../../utils/text';
 import type { OnboardingDraft, OnboardingStep, SourceSubmission } from '../../types/onboarding';
 import type { InitialValue } from '../../hooks/useOnboarding';
@@ -140,6 +141,15 @@ export function Composer({ step, initial, isEditing, onSubmit, onSubmitSource, o
     setAttachment({ name: file.name, dataUrl });
     setPasting(false);
   };
+
+  // A resume picked on the landing page: start reading it as soon as the resume step is on screen.
+  useEffect(() => {
+    if (step.kind !== 'resume') return;
+    const file = takePendingResume();
+    if (file) void onFile(file);
+    // Runs once per mount; the pending file is consumed on first read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const photoInput =
   <input

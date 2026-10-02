@@ -6,6 +6,7 @@ import { HeroPrompt } from '../components/landing/HeroPrompt';
 import { MatchPreview } from '../components/landing/MatchPreview';
 import { HowItWorks } from '../components/landing/HowItWorks';
 import { HeroBackground, isHeroBackgroundVariant } from '../components/landing/HeroBackground';
+import { useResumeUpload } from '../components/landing/useResumeUpload';
 import { useSession } from '../contexts/SessionContext';
 
 export function Landing() {
@@ -15,6 +16,9 @@ export function Landing() {
   const [params] = useSearchParams();
   const bgParam = params.get('bg');
   const bg = isHeroBackgroundVariant(bgParam) ? bgParam : undefined;
+  const upload = useResumeUpload();
+  const ctaClass =
+  'mt-8 inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-base font-medium text-white transition-colors duration-150 hover:bg-navy-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2';
 
   return (
     <div className="min-h-screen w-full bg-white">
@@ -74,12 +78,20 @@ export function Landing() {
             <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-muted">
               Drop in your resume and we’ll rank this month’s BYU events by who’s hiring people like you.
             </p>
-            <Link
-              to={appHome}
-              className="mt-8 inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-base font-medium text-white transition-colors duration-150 hover:bg-navy-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2">
-              Upload your resume
-              <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
-            </Link>
+            {state.profile ?
+            <Link to={appHome} className={ctaClass}>
+                See your events
+                <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
+              </Link> :
+
+            <>
+                {upload.input}
+                <button type="button" onClick={upload.open} className={ctaClass}>
+                  Upload your resume
+                  <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </>
+            }
           </div>
         </section>
       </main>

@@ -12,6 +12,7 @@ import { ReadyDialog } from '../components/onboarding/ReadyDialog';
 import { useSession } from '../contexts/SessionContext';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { firstName } from '../utils/text';
+import { hasPendingResume } from '../utils/pendingResume';
 import type { OnboardingStep } from '../types/onboarding';
 
 /** Gap kept between the newest message and the top of the pinned composer. */
@@ -43,6 +44,13 @@ export function Onboarding() {
     end.scrollIntoView({ behavior: firstScroll.current || reduceMotion ? 'auto' : 'smooth', block: 'end' });
     firstScroll.current = false;
   }, [scrollKey, ob.phase, reduceMotion]);
+
+  // A resume picked on the landing page replaces an earlier answer: reopen the resume step so the Composer reads it.
+  useEffect(() => {
+    if (hasPendingResume() && ob.draft.answers.resume) ob.setEditing('resume');
+    // Once, on arrival from the landing page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Every question answered (and not mid-edit): offer to build, after a beat so the closing message is seen.
   const readyNow = ob.complete && !ob.editing;
