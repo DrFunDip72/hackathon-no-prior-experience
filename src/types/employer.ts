@@ -41,7 +41,6 @@ export interface StudentSeed {
   coursework: string[];
   industries: string[];
   companies: string[];
-  linkedin: boolean;
   visible: boolean;
   attendedEvents: AttendedEvent[];
 }

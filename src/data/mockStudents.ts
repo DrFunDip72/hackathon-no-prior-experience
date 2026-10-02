@@ -20,7 +20,8 @@ function toProfile(seed: StudentSeed): Profile {
     summary: seed.summary,
     year: seed.year,
     handshakeUrl: '',
-    linkedinUrl: seed.linkedin ? `https://www.linkedin.com/in/doorway-demo-${slug(seed.name, '-')}` : '',
+    // Sample students are fictional, so no LinkedIn link: a made-up profile URL would open a dead page in a demo.
+    linkedinUrl: '',
     resumeFileName: null,
     resumeDataUrl: null,
     lookingFor: {
