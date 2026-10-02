@@ -29,10 +29,19 @@ const MERGE = {
   registration_deadline: (c) => `${c} = coalesce(excluded.${c}, events.${c})`
 };
 
-export async function upsertEvent(row, client = pool) {
+// Lists a source's own keyword classification can be wrong, and a union would keep a bad tag forever. A source that
+// classifies by keyword passes `replace` (e.g. ['fields']); those lists are then overwritten, but only when the existing
+// row came from the same source, so curated data from other sources still merges in.
+const LIST_COLS = ['companies', 'programs', 'fields'];
+const mergeClause = (c, replace) => {
+  if (!LIST_COLS.includes(c) || !replace.includes(c)) return MERGE[c] ? MERGE[c](c) : `${c} = excluded.${c}`;
+  return `${c} = case when events.source = excluded.source then excluded.${c} else array(select distinct u from unnest(events.${c} || excluded.${c}) u order by u) end`;
+};
+
+export async function upsertEvent(row, client = pool, { replace = [] } = {}) {
   const placeholders = COLS.map((c, i) => (c === 'people' ? `$${i + 1}::jsonb` : `$${i + 1}`)).join(', ');
   const updates = COLS.filter((c) => !['id', 'dedupe_hash'].includes(c))
-    .map((c) => (MERGE[c] ? MERGE[c](c) : `${c} = excluded.${c}`)).join(', ');
+    .map((c) => mergeClause(c, replace)).join(', ');
   const { rows } = await client.query(
     `insert into events (${COLS.join(', ')}) values (${placeholders})
      on conflict (dedupe_hash) do update set ${updates}, updated_at = now()

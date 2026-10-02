@@ -82,10 +82,15 @@ export async function ingestCs() {
       if (!icsUrl) throw new Error('no ICS link on page');
       const ev = parseIcs(await getText(icsUrl));
       if (!ev?.title || !ev.start) throw new Error('ICS missing title or start');
-      const text = `${ev.description} ${htmlToText(html)}`;
+      // Type and fields come from the title and ICS description only: the page text carries site-wide words that
+      // trigger the keyword rules. The page text is still searched for sponsor names.
+      const { type, fields } = classify(ev.title, ev.description);
+      const { companies } = classify(ev.title, `${ev.description} ${htmlToText(html)}`);
       await upsertEvent(toEventRow({
         ...ev,
-        ...classify(ev.title, text),
+        type,
+        fields,
+        companies,
         source: 'cs_dept',
         source_url: link,
         description: ev.description || null

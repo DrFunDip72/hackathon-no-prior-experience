@@ -3,7 +3,7 @@
 // Category ids come from https://calendar.byu.edu/api/Categories (Student Life = 49, Education = 4, Conferences = 1006).
 import { upsertEvent } from './db.js';
 import { toEventRow } from './event.js';
-import { classify } from './classify.js';
+import { classify, isNonCareerEvent } from './classify.js';
 
 const CATEGORIES = process.env.BYU_CATEGORIES ?? '49+4+1006';
 const DAY_MS = 86_400_000;
@@ -23,6 +23,7 @@ export async function ingestByu(days = 30) {
   const today = new Date();
   let seen = 0;
   let saved = 0;
+  let dropped = 0;
   for (let offset = 0; offset < days; offset += CHUNK_DAYS) {
     const min = new Date(today.getTime() + offset * DAY_MS);
     const max = new Date(today.getTime() + Math.min(offset + CHUNK_DAYS, days) * DAY_MS);
@@ -31,6 +32,10 @@ export async function ingestByu(days = 30) {
     seen += items.length;
     for (const e of items) {
       const description = stripHtml(e.Description);
+      if (isNonCareerEvent(e.Title, `${description} ${e.TagsNames ?? ''}`)) {
+        dropped++;
+        continue;
+      }
       try {
         await upsertEvent(toEventRow({
           title: e.Title,
@@ -41,12 +46,12 @@ export async function ingestByu(days = 30) {
           source: 'byu_calendar',
           source_url: e.FullUrl,
           description
-        }));
+        }), undefined, { replace: ['fields', 'companies', 'programs'] }); // keyword-classified: re-ingest corrects old tags
         saved++;
       } catch (err) {
         console.warn(`skipped "${e.Title}": ${err.message}`);
       }
     }
   }
-  console.log(`byu ingest: upserted ${saved} of ${seen} events`);
+  console.log(`byu ingest: upserted ${saved} of ${seen} events (${dropped} non-career dropped)`);
 }
