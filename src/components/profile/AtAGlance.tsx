@@ -6,6 +6,8 @@ import { useSectionEditor } from '../../hooks/useSectionEditor';
 import { joinList, splitList } from '../../utils/text';
 import { EMPLOYMENT_OPTIONS } from '../../data/onboardingSteps';
 
+const START_HINT = 'When you can start working, e.g. May 2027';
+
 export function AtAGlance({ profile, editable, onSave }: SectionProps) {
   const { lookingFor } = profile;
   const ed = useSectionEditor(
@@ -36,7 +38,12 @@ export function AtAGlance({ profile, editable, onSave }: SectionProps) {
     value: lookingFor.roleTypes.length ? lookingFor.roleTypes.join(', ') : 'Not set',
     sub: lookingFor.employmentType === 'Either' ? 'Internship or full-time' : lookingFor.employmentType
   },
-  { label: 'Available', value: lookingFor.startDate || 'Not set' },
+  {
+    label: 'Can start',
+    value: lookingFor.startDate || 'Not set',
+    // Owner-only hint; recruiters (and the employer preview) see just the date.
+    sub: editable ? START_HINT : undefined
+  },
   { label: 'Locations', value: lookingFor.locations.join(' · ') || 'Open' },
   { label: 'Work authorization', value: profile.workAuthorization || 'Not set' }];
 
@@ -74,7 +81,7 @@ export function AtAGlance({ profile, editable, onSave }: SectionProps) {
             </div>
           </fieldset>
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField label="Available" value={ed.form.startDate} onChange={(v) => ed.setForm({ ...ed.form, startDate: v })} placeholder="Summer 2027" />
+            <TextField label="Can start" value={ed.form.startDate} onChange={(v) => ed.setForm({ ...ed.form, startDate: v })} placeholder="May 2027" hint={START_HINT} />
             <TextField label="Locations" value={ed.form.locations} onChange={(v) => ed.setForm({ ...ed.form, locations: v })} />
           </div>
           <TextField label="Work authorization" value={ed.form.workAuthorization} onChange={(v) => ed.setForm({ ...ed.form, workAuthorization: v })} />
