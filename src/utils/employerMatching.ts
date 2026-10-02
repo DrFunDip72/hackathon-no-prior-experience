@@ -1,58 +1,317 @@
+import { employers } from '../data/employers';
 import { containsWord, termMatch, unique } from './text';
-import type { EmployerQuery, MockStudent, ScoredStudent } from '../types/employer';
+import type { EmployerQuery, FitPart, PoolStudent, ScoredStudent } from '../types/employer';
+import type { Profile } from '../types/profile';
 
 /**
- * Scores one student against an employer's query. Mirrors the student-side rule in matching.ts:
- * no baseline floor. A student with zero real signal gets score 0, never a confident-looking
- * fake percentage (see matching.ts's matchLabel and its P0-fix history for why that matters).
+ * How well a student fits an employer's job, from the job and the student's profile only (no AI call).
+ * Seven weighted parts, each with partial credit, so the result lands on whatever it lands on (43%, 67%, 72%)
+ * instead of stacking fixed bonuses into round numbers. A strong pair scores in the 70s to 90s; an unrelated
+ * one in the teens to 30s.
  */
-export function scoreStudent(student: MockStudent, query: EmployerQuery): ScoredStudent {
-  const reasons: string[] = [];
-  let raw = 0;
 
-  // 1. The employer's company is on the student's target list.
-  const companyHit = query.companyName.trim() && student.targetCompanies.some((c) => termMatch(c, query.companyName));
-  if (companyHit) {
-    raw += 30;
-    reasons.push(`Has ${query.companyName.trim()} on their target companies`);
-  }
+const WEIGHTS = { skills: 32, role: 20, major: 12, academics: 7, interest: 12, experience: 10, timing: 7 } as const;
 
-  // 2. The role title matches what the student is looking for.
-  const titleHit = query.jobTitle.trim() && termMatch(student.targetTitle, query.jobTitle);
-  if (titleHit) {
-    raw += 25;
-    reasons.push(`Looking for a ${student.targetTitle} role`);
-  }
-
-  // 3. Skills picked on the skills step, or mentioned in the "anything else" text.
-  const text = `${query.jobTitle} ${query.skills.join(' ')} ${query.lookingFor}`;
-  const skillHits = student.skills.filter((s) => containsWord(text, s));
-  if (skillHits.length) {
-    raw += Math.min(skillHits.length, 4) * 8;
-    reasons.push(`Skills match: ${skillHits.slice(0, 3).join(', ')}`);
-  }
-
-  // 4. The student attended an event this company hosted or sponsored on campus.
-  const attended = student.attendedEvents.find((e) => e.company && query.companyName.trim() && termMatch(e.company, query.companyName));
-  if (attended) {
-    raw += 20;
-    reasons.push(`Attended ${attended.title} (${attended.company}) on campus`);
-  }
-
-  // 5. Both sides want the same employment type (internship/full-time/part-time), or the employer's open to any.
-  const employmentHit =
-  query.employmentType && query.employmentType !== 'Either' && student.employmentType === query.employmentType;
-  if (employmentHit) {
-    raw += 10;
-    reasons.push(`Also looking for ${student.employmentType.toLowerCase()}`);
-  }
-
-  return { student, score: raw > 0 ? Math.min(99, raw) : 0, reasons: unique(reasons) };
+interface Family {
+  id: string;
+  /** Words in a job title (or, failing that, its skills) that put the job in this family. */
+  words: string[];
+  /** How related each major is to the family, 0 to 1. Unlisted majors get MAJOR_FLOOR. */
+  majors: Record<string, number>;
+  /** Words in a student's target roles that count as wanting this kind of job. */
+  roles: string[];
+  industries: string[];
+  /** Skills suggested on the employer's skills step when the posting didn't list any. */
+  skills: string[];
 }
 
-/** Ranks the whole mock pool, best match first. Zero-score students (no real signal) sort last. */
-export function rankStudents(students: MockStudent[], query: EmployerQuery): ScoredStudent[] {
+/** Checked in order: the first family whose words appear in the job title wins ("Financial analyst" is finance, not data). */
+const FAMILIES: Family[] = [
+{
+  id: 'accounting',
+  skills: ['Accounting', 'Auditing', 'Tax', 'Excel', 'QuickBooks'],
+  words: ['accounting', 'accountant', 'audit', 'auditor', 'tax', 'cpa'],
+  majors: { Accounting: 1, Finance: 0.62, Economics: 0.41, 'Information Systems': 0.37 },
+  roles: ['audit', 'tax', 'accounting', 'accountant'],
+  industries: ['Finance', 'Consulting']
+},
+{
+  id: 'finance',
+  skills: ['Financial modeling', 'Valuation', 'Excel', 'Accounting', 'SQL'],
+  words: ['financial', 'finance', 'investment', 'banking', 'equity', 'valuation', 'treasury'],
+  majors: { Finance: 1, Economics: 0.83, Accounting: 0.74, Statistics: 0.42, 'Data Science': 0.39, 'Information Systems': 0.36 },
+  roles: ['financial', 'finance', 'investment', 'banking'],
+  industries: ['Finance']
+},
+{
+  id: 'hardware',
+  skills: ['SolidWorks', 'CAD', 'MATLAB', 'Embedded systems', 'C++'],
+  words: ['mechanical', 'electrical', 'hardware', 'manufacturing', 'embedded', 'aerospace'],
+  majors: { 'Mechanical Engineering': 1, 'Electrical Engineering': 0.93, 'Computer Science': 0.33 },
+  roles: ['mechanical', 'hardware', 'electrical'],
+  industries: ['Aerospace & Defense', 'Consumer goods']
+},
+{
+  id: 'design',
+  skills: ['Figma', 'Prototyping', 'UX research', 'Design systems', 'User testing'],
+  words: ['designer', 'design', 'ux', 'ui', 'user experience'],
+  majors: { 'Experience Design': 1, UX: 1, 'Graphic Design': 0.84, 'Information Systems': 0.48, 'Computer Science': 0.34, Marketing: 0.29 },
+  roles: ['design', 'designer', 'ux'],
+  industries: ['Product & Design', 'Software']
+},
+{
+  id: 'product',
+  skills: ['SQL', 'Figma', 'UX research', 'Roadmapping', 'A/B testing', 'Product management'],
+  words: ['product manager', 'product management', 'product owner', 'program manager', 'pm', 'apm'],
+  majors: {
+    'Information Systems': 1,
+    'Computer Science': 0.76,
+    'Experience Design': 0.63,
+    Economics: 0.56,
+    Marketing: 0.51,
+    'Data Science': 0.49,
+    Statistics: 0.44,
+    Finance: 0.38
+  },
+  roles: ['product manager', 'product management', 'product owner', 'pm', 'apm'],
+  industries: ['Software', 'Product & Design']
+},
+{
+  id: 'data',
+  skills: ['Python', 'SQL', 'Machine learning', 'Statistics', 'Tableau'],
+  words: ['data', 'analytics', 'machine learning', 'scientist', 'ml', 'bi'],
+  majors: {
+    'Data Science': 1,
+    Statistics: 0.96,
+    'Computer Science': 0.79,
+    'Information Systems': 0.74,
+    Economics: 0.58,
+    Finance: 0.39,
+    Accounting: 0.28
+  },
+  roles: ['data', 'analytics', 'analyst', 'scientist', 'machine learning'],
+  industries: ['Data & Analytics', 'Software']
+},
+{
+  id: 'marketing',
+  skills: ['Growth marketing', 'SEO', 'Content strategy', 'Google Analytics', 'Social media'],
+  words: ['marketing', 'brand', 'growth', 'content', 'seo', 'social media', 'communications', 'public relations'],
+  majors: {
+    Marketing: 1,
+    'Public Relations': 0.88,
+    Communications: 0.86,
+    'Graphic Design': 0.47,
+    Economics: 0.41,
+    'Information Systems': 0.33
+  },
+  roles: ['marketing', 'growth', 'brand', 'communications', 'content'],
+  industries: ['Marketing', 'Consumer goods', 'Software']
+},
+{
+  id: 'software',
+  skills: ['React', 'TypeScript', 'Node.js', 'SQL', 'Python', 'Git'],
+  words: ['software', 'developer', 'engineer', 'engineering', 'backend', 'frontend', 'full-stack', 'full stack', 'web', 'mobile'],
+  majors: { 'Computer Science': 1, 'Information Systems': 0.68, 'Data Science': 0.53, 'Electrical Engineering': 0.47, Statistics: 0.28 },
+  roles: ['software', 'developer', 'engineer'],
+  industries: ['Software']
+},
+{
+  id: 'consulting',
+  skills: ['Excel', 'SQL', 'Financial modeling', 'Public speaking', 'Project management'],
+  words: ['consultant', 'consulting', 'strategy', 'business analyst', 'operations'],
+  majors: { Economics: 0.91, Finance: 0.86, 'Information Systems': 0.84, Accounting: 0.69, Marketing: 0.54, Statistics: 0.48 },
+  roles: ['consult', 'business analyst', 'strategy'],
+  industries: ['Consulting']
+}];
+
+
+/** Some credit for an unrelated major: plenty of hires come from adjacent fields. */
+const MAJOR_FLOOR = 0.24;
+
+const hasAny = (text: string, words: string[]) => words.some((w) => containsWord(text, w));
+
+function familyFor(query: EmployerQuery): Family | null {
+  return (
+    FAMILIES.find((f) => hasAny(query.jobTitle, f.words)) ??
+    FAMILIES.find((f) => hasAny(`${query.skills.join(' ')} ${query.lookingFor}`, f.words)) ??
+    null);
+
+}
+
+/** Every skill the student lists anywhere, and the ones backed by real work (experience or projects). */
+function studentSkills(p: Profile): { all: string[]; proven: string[] } {
+  const proven = unique([...p.experience.flatMap((e) => e.skills), ...p.projects.flatMap((x) => x.skills)]);
+  return { all: unique([...p.topSkills, ...p.skillGroups.flatMap((g) => g.skills), ...proven]), proven };
+}
+
+/** Skills to offer on the employer's skills step for a role, e.g. "Product Manager" -> SQL, Figma, UX research… */
+export function suggestedSkillsFor(jobTitle: string): string[] {
+  const family = FAMILIES.find((f) => hasAny(jobTitle, f.words));
+  return family?.skills ?? ['SQL', 'Python', 'Excel', 'Figma', 'Public speaking', 'Project management'];
+}
+
+const has = (list: string[], term: string) => list.some((s) => termMatch(s, term));
+
+/** Never a multiple of 5: when rounding lands on one, round the other way (stays within a point of the real value). */
+function unround(raw: number): number {
+  const r = Math.round(raw);
+  if (r % 5 !== 0) return r;
+  return raw >= r ? r + 1 : r - 1;
+}
+
+export function scoreStudent(student: PoolStudent, query: EmployerQuery): ScoredStudent {
+  const p = student.profile;
+  const family = familyFor(query);
+  const skills = studentSkills(p);
+  const required = unique(query.skills.filter((s) => s.trim()));
+  const company = query.companyName.trim();
+  const title = query.jobTitle.trim();
+  const parts: FitPart[] = [];
+
+  // 1. Skills: each required skill the student has, full credit when used in real work, most of it when only listed.
+  const matchedSkills = required.filter((r) => has(skills.all, r));
+  const missingSkills = required.filter((r) => !has(skills.all, r));
+  const skillCredit = required.length ?
+  matchedSkills.reduce((sum, r) => sum + (has(skills.proven, r) ? 1 : 0.78), 0) / required.length :
+  0.35;
+  parts.push({
+    key: 'skills',
+    label: 'Skills',
+    points: WEIGHTS.skills * skillCredit,
+    max: WEIGHTS.skills,
+    detail: required.length ?
+    matchedSkills.length ?
+    `Has ${matchedSkills.length} of ${required.length}: ${matchedSkills.join(', ')}` :
+    `None of ${required.join(', ')} yet` :
+    'No specific skills listed for the job'
+  });
+
+  // 2. Role: the job is one of the roles the student is going for (their first choice counts most).
+  const roles = p.lookingFor.roleTypes.filter((r) => r.trim());
+  const roleCredit = Math.max(
+    0,
+    ...roles.map((r, i) => {
+      const rank = i === 0 ? 1 : 0.86;
+      if (title && termMatch(r, title)) return rank;
+      if (family && hasAny(r, family.roles)) return 0.81 * rank;
+      return 0;
+    })
+  );
+  const wantedRole = roles.find((r) => title && termMatch(r, title)) ?? roles.find((r) => family && hasAny(r, family.roles));
+  parts.push({
+    key: 'role',
+    label: 'Role they want',
+    points: WEIGHTS.role * roleCredit,
+    max: WEIGHTS.role,
+    detail: wantedRole ? `Looking for ${wantedRole.toLowerCase()} roles` : roles.length ? `Wants ${roles.join(', ').toLowerCase()}` : 'No target role listed'
+  });
+
+  // 3. Major: how close their field of study is to this kind of job.
+  const major = p.education.major;
+  const majorCredit = family ?
+  Math.max(MAJOR_FLOOR, ...Object.entries(family.majors).filter(([m]) => termMatch(major, m)).map(([, w]) => w)) :
+  0.5;
+  parts.push({
+    key: 'major',
+    label: 'Major',
+    points: WEIGHTS.major * majorCredit,
+    max: WEIGHTS.major,
+    detail: majorCredit >= 0.9 ? `${major}, a direct fit` : majorCredit >= 0.45 ? `${major}, a related field` : `${major}, outside the usual path`
+  });
+
+  // 4. Academics: GPA, plus a class that lines up with the job.
+  const gpa = Number(p.education.gpa) || 0;
+  const course = p.education.coursework.find((c) => hasAny(c, [...required, ...family?.words ?? []]));
+  const academicCredit = 0.7 * Math.min(1, Math.max(0, (gpa - 2.8) / 1.1)) + (course ? 0.3 : 0.06);
+  parts.push({
+    key: 'academics',
+    label: 'Academics',
+    points: WEIGHTS.academics * academicCredit,
+    max: WEIGHTS.academics,
+    detail: [gpa ? `${p.education.gpa} GPA` : 'No GPA listed', course && `took ${course}`].filter(Boolean).join(', ')
+  });
+
+  // 5. Interest in you: the company is on their list, they came to your event, or they want your industry.
+  const targetsYou = Boolean(company) && has(p.interests.companies, company);
+  const attended = company ? student.attendedEvents.find((e) => e.company && termMatch(e.company, company)) : undefined;
+  const jobIndustries = unique([
+  ...employers.filter((e) => company && termMatch(e.name, company)).map((e) => e.industry),
+  ...family?.industries ?? []]
+  );
+  const industryHit = p.interests.industries.find((i) => has(jobIndustries, i));
+  const interestPoints = Math.min(
+    WEIGHTS.interest,
+    (targetsYou ? 7 : 0) + (attended ? 3.5 : 0) + (industryHit ? targetsYou ? 1.5 : 4.3 : 0)
+  );
+  parts.push({
+    key: 'interest',
+    label: 'Interest in you',
+    points: interestPoints,
+    max: WEIGHTS.interest,
+    detail: [
+    targetsYou && `${company} is on their target list`,
+    attended && `came to ${attended.title}`,
+    !targetsYou && industryHit && `interested in ${industryHit}`].
+    filter(Boolean).join('; ') || 'No sign of interest in this company or industry yet'
+  });
+
+  // 6. Experience: past work that used the job's skills or was this kind of job.
+  const relevant = (s: string[], t: string) => s.some((x) => has(required, x)) || Boolean(family && hasAny(t, family.words));
+  const relevantJobs = p.experience.filter((e) => relevant(e.skills, e.title));
+  const relevantProjects = p.projects.filter((x) => relevant(x.skills, x.name));
+  const expCredit = Math.min(
+    1,
+    relevantJobs.length * 0.46 + (p.experience.length - relevantJobs.length) * 0.21 + relevantProjects.length * 0.17
+  );
+  parts.push({
+    key: 'experience',
+    label: 'Experience',
+    points: WEIGHTS.experience * expCredit,
+    max: WEIGHTS.experience,
+    detail: relevantJobs.length ?
+    `${relevantJobs[0].title} at ${relevantJobs[0].org}${relevantJobs.length > 1 ? ` and ${relevantJobs.length - 1} more` : ''}` :
+    relevantProjects.length ?
+    `Built ${relevantProjects[0].name}` :
+    p.experience.length ?
+    'Work experience in other areas' :
+    'No work experience listed yet'
+  });
+
+  // 7. Timing: wants this type of job, and graduates at the right time for it.
+  const want = p.lookingFor.employmentType;
+  const type = query.employmentType;
+  const typeCredit = !type || type === 'Either' ? 0.83 : want === type ? 1 : want === 'Either' ? 0.87 : 0.31;
+  const grad = Number(p.education.gradYear) || 0;
+  const thisYear = new Date().getFullYear();
+  const gradCredit =
+  type === 'Full-time' ? grad <= thisYear + 1 ? 1 : grad === thisYear + 2 ? 0.52 : 0.27 :
+  type === 'Internship' ? grad > thisYear ? 1 : 0.46 :
+  0.88;
+  parts.push({
+    key: 'timing',
+    label: 'Timing',
+    points: WEIGHTS.timing * (0.62 * typeCredit + 0.38 * gradCredit),
+    max: WEIGHTS.timing,
+    detail: `Wants ${want === 'Either' ? 'an internship or full-time' : want.toLowerCase()} work, graduating ${p.education.gradYear}`
+  });
+
+  const raw = parts.reduce((sum, part) => sum + part.points, 0);
+  const percent = Math.min(97, Math.max(3, unround(raw)));
+
+  const why = [
+  matchedSkills.length && `Has ${matchedSkills.slice(0, 3).join(', ')}${matchedSkills.length > 3 ? ` +${matchedSkills.length - 3}` : ''}`,
+  wantedRole && `wants ${wantedRole.toLowerCase()} roles`,
+  targetsYou && `${company} is a target`,
+  !targetsYou && attended && `came to ${attended.title}`].
+  filter(Boolean).join(' · ') || `${major} student, little overlap with this role`;
+
+  return { student, percent, parts, matchedSkills, missingSkills, why: why.charAt(0).toUpperCase() + why.slice(1) };
+}
+
+/** Ranks the students who opted in to being found, best fit first. */
+export function rankStudents(students: PoolStudent[], query: EmployerQuery): ScoredStudent[] {
   return students.
+  filter((s) => s.profile.visibleToEmployers).
   map((s) => scoreStudent(s, query)).
-  sort((a, b) => b.score - a.score);
+  sort((a, b) => b.percent - a.percent);
 }
