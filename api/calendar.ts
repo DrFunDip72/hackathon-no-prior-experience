@@ -3,7 +3,8 @@
  *
  * An iCalendar (RFC 5545) feed of upcoming Doorway events, for "Subscribe in Google Calendar"
  * on the Events page (Apple Calendar and Outlook take the same URL). It is the same for everyone:
- * every event from the events API (Railway) from today through 60 days out, no profile ranking.
+ * career events from the events API (Railway) from today through 60 days out, no profile ranking.
+ * "Career" = see isCareerEvent: the general BYU calendar also carries lectures, devotional-style talks and socials.
  * Google re-fetches subscribed feeds on its own schedule (often every few hours or longer).
  *
  * Responses:
@@ -23,9 +24,17 @@ interface ApiEvent {
   end_at: string | null;
   location: string | null;
   companies: string[] | null;
+  source: string;
+  type: string;
   description: string | null;
   source_url: string | null;
   registration_url: string | null;
+}
+
+/** Career Services and CS department events always; general BYU calendar events only when a company comes or it's an info session or fair. */
+function isCareerEvent(e: ApiEvent): boolean {
+  if (e.source !== 'byu_calendar') return true;
+  return (e.companies?.length ?? 0) > 0 || e.type === 'info_session' || e.type === 'career_fair';
 }
 
 /** 2026-10-02T14:00:00.000Z -> 20261002T140000Z */
@@ -111,7 +120,7 @@ export async function GET(): Promise<Response> {
     'X-WR-TIMEZONE:America/Denver',
     'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
     'X-PUBLISHED-TTL:PT6H',
-    ...events.filter((e) => e.id && e.title && !Number.isNaN(Date.parse(e.start_at))).flatMap((e) => vevent(e, stamp)),
+    ...events.filter((e) => e.id && e.title && !Number.isNaN(Date.parse(e.start_at)) && isCareerEvent(e)).flatMap((e) => vevent(e, stamp)),
     'END:VCALENDAR'
   ];
 
