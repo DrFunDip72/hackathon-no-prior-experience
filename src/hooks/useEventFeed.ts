@@ -4,7 +4,7 @@ import { calendarSources } from '../data/calendarSources';
 import { api } from '../utils/api';
 import { API_URL, fetchEventsByIds, fetchRecommendedEvents, toApiProfile } from '../utils/backend';
 import { daysFromToday } from '../utils/dates';
-import { AI_GOOD_MATCH, AI_STRONG_MATCH, getProfileTerms, scoreEvent } from '../utils/matching';
+import { AI_GOOD_MATCH, AI_STRONG_MATCH, getProfileTerms, isHiddenFromFeed, scoreEvent } from '../utils/matching';
 import { cachedScores, fetchAiScores, rankKey, type AiScores } from '../utils/aiRank';
 import { unique } from '../utils/text';
 import type { CalendarSourceId } from '../types/calendar';
@@ -50,11 +50,25 @@ function useAiScores(profile: Profile, items: ScoredEvent[]): AiScores | null {
 /** The API's generic reason when nothing matched, e.g. "Upcoming info session, worth a look." */
 const GENERIC_REASON = /worth a look\.?$/i;
 
+/** A plain description from the event's own data, for when there's no real match to explain. */
+function neutralLine(item: ScoredEvent): string {
+  const { type, location } = item.event;
+  const names = item.employers.map((e) => e.name);
+  if (names.length) {
+    const more = names.length > 2 ? ` and ${names.length - 2} more` : '';
+    return `${type} with ${names.slice(0, 2).join(names.length === 2 ? ' and ' : ', ')}${more}.`;
+  }
+  if (item.people.length) return `${type} with ${item.people.length} ${item.people.length === 1 ? 'person' : 'people'} you can meet.`;
+  return location && location !== 'Location TBA' ? `${type} at ${location}.` : `Campus ${type.toLowerCase()}.`;
+}
+
 /**
  * Keeps the API's reason when it names real matches; otherwise, for events the AI rates Good or better,
- * says what they fit (until Phase 2's per-event AI reasons replace this).
+ * says what they fit (until Phase 2's per-event AI reasons replace this). A field-only API reason
+ * ("Covers product…") on an event the AI rates below Good is often a mis-tag, so it gets a neutral line.
  */
 function aiWhyLine(item: ScoredEvent, percent: number, profile: Profile): string | undefined {
+  if (!item.targetCompanies.length && percent < AI_GOOD_MATCH) return neutralLine(item);
   const hasApiReason = item.reason && item.reasons.length > 0 && !GENERIC_REASON.test(item.reason);
   if (hasApiReason || percent < AI_GOOD_MATCH) return item.reason;
   const role = profile.lookingFor.roleTypes[0]?.trim();
@@ -151,11 +165,13 @@ export function useEventFeed() {
     return saved.map((e) => scoreEvent(e, profile, terms, googleConnected)).filter((e) => e.end > now);
   }, [saved, profile, googleConnected]);
 
-  const scored = useMemo(
+  const fromSources = useMemo(
     () => allScored.filter((s) => showingAllSources || connectedSources.includes(s.event.sourceId)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [allScored, sourcesKey]
   );
+  // Off-topic events (FHE nights, dances, AI percent < 20) leave the feed; "My plan" below still shows saved ones.
+  const scored = useMemo(() => fromSources.filter((s) => !isHiddenFromFeed(s)), [fromSources]);
 
   const items = useMemo(
     () =>
@@ -196,6 +212,8 @@ export function useEventFeed() {
     },
     items,
     total: scored.length,
+    /** Events left out of the feed as off-topic (see isHiddenFromFeed). */
+    hiddenCount: fromSources.length - scored.length,
     planned,
     /** Some saved events couldn't be loaded by id; `retry` tries again. */
     plannedError: savedError,

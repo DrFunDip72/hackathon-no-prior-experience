@@ -91,7 +91,8 @@ export function Events() {
             <p className="mt-1 text-sm text-muted">
               {feed.loading ?
               'Syncing BYU calendars…' :
-              `${feed.total} upcoming events ranked by how well they fit your profile`}
+              `${feed.total} upcoming events ranked by how well they fit your profile${
+              feed.hiddenCount ? ` · ${feed.hiddenCount} off-topic hidden` : ''}`}
             </p>
           </div>
           <div role="tablist" aria-label="Event lists" className="flex rounded-lg bg-white p-0.5 ring-1 ring-line">

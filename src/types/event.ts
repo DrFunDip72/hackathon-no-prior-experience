@@ -94,6 +94,10 @@ export interface ScoredEvent {
    * the AI thresholds in matchLabel; when absent, `score` is the scaled API score.
    */
   aiPercent?: number;
+  /** The student's target companies that are attending (display names). */
+  targetCompanies: string[];
+  /** Fields, skills and roles the match was based on (the API's matched_fields), without company names. */
+  matchedFields: string[];
   conflict: string | null;
   employers: Employer[];
   people: ScoredPerson[];

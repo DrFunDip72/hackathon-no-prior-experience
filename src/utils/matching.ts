@@ -105,6 +105,32 @@ export function isGoodMatch(item: ScoredEvent): boolean {
   return item.reasons.length > 0 && item.score >= GOOD_MATCH;
 }
 
+/** Below this AI percent an event is off-topic for the student (FHE nights, dances score ~10), unless a target company attends. */
+export const AI_HIDE_BELOW = 20;
+
+/** Clearly non-career campus events (ward/stake socials, devotionals, dances). */
+const NON_CAREER =
+/\bFHE\b|family home evening|\bdevotional\b|\bcraft night\b|\bgame night\b|\bdances?\b|\bward (?:activity|social)\b|\bstake (?:activity|social|dance)\b/i;
+
+/**
+ * Title always; description only when no company is listed, so a career event that merely mentions
+ * "after the devotional" in its blurb isn't dropped.
+ */
+function looksNonCareer(item: ScoredEvent): boolean {
+  if (NON_CAREER.test(item.event.title)) return true;
+  return item.employers.length === 0 && NON_CAREER.test(item.event.description);
+}
+
+/**
+ * True for events the feed hides: the AI rates them off-topic, or they're plainly not career events
+ * (works without AI). A target company attending always keeps an event.
+ */
+export function isHiddenFromFeed(item: ScoredEvent): boolean {
+  if (item.targetCompanies.length) return false;
+  if (item.aiPercent !== undefined && item.aiPercent < AI_HIDE_BELOW) return true;
+  return looksNonCareer(item);
+}
+
 /** Class schedule blocks are campus wall-clock times, so compare in campus time. */
 export function findConflict(start: Date, end: Date): ScheduleBlock | null {
   const { weekday, hour, minute } = campusParts(start);
@@ -148,6 +174,11 @@ export function scoreEvent(event: CampusEvent, profile: Profile, terms: ProfileT
   sort((a, b) => b.score - a.score);
 
   const fromApi = Boolean(event.startAt);
+  // The API's reasons are matched_companies followed by matched_fields; split them back apart.
+  const isEventCompany = (term: string) => eventEmployers.some((e) => termMatch(term, e.name));
+  const apiCompanyNames = (event.apiReasons ?? []).
+  filter(isEventCompany).
+  map((r) => eventEmployers.find((e) => termMatch(r, e.name))?.name ?? r);
 
   return {
     event,
@@ -158,6 +189,8 @@ export function scoreEvent(event: CampusEvent, profile: Profile, terms: ProfileT
     score: fromApi ? Math.min(99, Math.round((event.apiScore ?? 0) * 3)) : Math.min(98, raw),
     reasons: event.apiReasons ?? unique([...companyHits.map((e) => e.name), ...tagHits, ...industryHits]).slice(0, 3),
     reason: event.apiReason,
+    targetCompanies: unique([...companyHits.map((e) => e.name), ...apiCompanyNames]),
+    matchedFields: event.apiReasons ? event.apiReasons.filter((r) => !isEventCompany(r)) : unique([...tagHits, ...industryHits]),
     conflict: checkConflicts ? findConflict(start, end)?.title ?? null : null,
     employers: eventEmployers,
     people: scoredPeople
