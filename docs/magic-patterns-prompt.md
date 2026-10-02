@@ -12,7 +12,7 @@ Doorway helps college seniors land jobs through networking, which is how most pe
 
 The first audience is **BYU computer science seniors** looking for full-time software or product roles. Keep the code general so other schools and majors can be added later.
 
-It is **not** a job board and has no job applications. The line the whole product runs on: *"Find who you need to find."*
+It is **not** a job board and has no job applications. The line the whole product runs on: *"Get your foot in the door."*
 
 ## Design
 
@@ -24,7 +24,7 @@ It is **not** a job board and has no job applications. The line the whole produc
 ## Screens and routes
 
 ### 1. Landing page (`/`)
-- Headline: **Find who you need to find.**
+- Headline: **Get your foot in the door.**
 - Subhead: one sentence saying Doorway turns scattered campus events into a personal plan, with who to talk to and what to say.
 - Two buttons: **Get started** (goes to `/onboarding`) and **Try the demo** (loads a pre-filled demo profile and goes to `/home`).
 - Three-step "how it works" cards: 1 Tell us about you (chat, no forms). 2 See where to be this week. 3 Walk in knowing who to talk to and what to say.

@@ -1,6 +1,6 @@
 # Doorway
 
-*Find who you need to find.*
+*Get your foot in the door.*
 
 Hackathon project for the **Improving the job hunt** challenge. Doorway pulls scattered campus events into one personal plan and tells students who to talk to and what to say, because networking, not applications, is what gets people hired.
 
