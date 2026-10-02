@@ -78,6 +78,18 @@ export function findConflict(start: Date, end: Date): ScheduleBlock | null {
 
 }
 
+/**
+ * One scale for every match-score badge in the app: under 25% reads as a weak match (red),
+ * 25-49% orange, 50-64% yellow, 65%+ a strong match (green). 29% should never look as confident
+ * as 85% did before this existed.
+ */
+export function scoreColorClass(score: number): string {
+  if (score < 25) return 'text-danger';
+  if (score < 50) return 'text-orange-600';
+  if (score < 65) return 'text-yellow-700';
+  return 'text-success-700';
+}
+
 export function scheduleForDay(date: Date): ScheduleBlock[] {
   return schedule.
   filter((b) => b.days.includes(date.getDay())).
@@ -101,11 +113,11 @@ export function scoreEvent(event: CampusEvent, profile: Profile, terms: ProfileT
   Math.min(tagHits.length, 4) * 9 + (
   event.type === 'Career fair' ? 6 : 0);
 
-  const scoredPeople = event.attendeeIds.
-  map((id) => people.find((p) => p.id === id)).
-  filter((p): p is Person => Boolean(p)).
-  map((p) => scorePerson(p, profile, terms)).
-  sort((a, b) => b.score - a.score);
+  // API events carry their own people (when the listing named any); sample events look theirs up locally.
+  const peopleSource: Person[] =
+  event.apiPeople ??
+  event.attendeeIds.map((id) => people.find((p) => p.id === id)).filter((p): p is Person => Boolean(p));
+  const scoredPeople = peopleSource.map((p) => scorePerson(p, profile, terms)).sort((a, b) => b.score - a.score);
 
   return {
     event,

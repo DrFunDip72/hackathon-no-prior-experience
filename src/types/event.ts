@@ -29,6 +29,12 @@ export interface CampusEvent {
   apiScore?: number;
   apiReasons?: string[];
   apiReason?: string;
+  /** Sign-up link, when the source has one (distinct from sourceUrl, which is the listing page). */
+  registrationUrl?: string;
+  /** false = unconfirmed (a submission, or an unverified seed row). Undefined for sample data, which is always treated as confirmed. */
+  verified?: boolean;
+  /** People named on the API listing, already shaped for the UI. Undefined for sample data (attendeeIds is used instead). */
+  apiPeople?: Person[];
 }
 
 export interface Employer {
@@ -39,7 +45,7 @@ export interface Employer {
   color: string;
 }
 
-export type PersonKind = 'Recruiter' | 'Alumni' | 'Speaker' | 'Club lead';
+export type PersonKind = 'Recruiter' | 'Alumni' | 'Speaker' | 'Club lead' | 'Host';
 
 export interface Person {
   id: string;

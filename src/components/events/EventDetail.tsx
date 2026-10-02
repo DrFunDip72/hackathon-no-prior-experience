@@ -6,7 +6,7 @@ import { AddToCalendarButton } from './AddToCalendarButton';
 import { PersonRow } from './PersonRow';
 import { EmployerLogo } from '../ui/EmployerLogo';
 import { formatDay, formatClock, formatTimeRange, toMinutes } from '../../utils/dates';
-import { scheduleForDay } from '../../utils/matching';
+import { scheduleForDay, scoreColorClass } from '../../utils/matching';
 import type { ScoredEvent } from '../../types/event';
 
 interface EventDetailProps {
@@ -26,7 +26,14 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto p-5">
         <div className="flex items-start justify-between gap-3">
-          <p className="text-xs font-medium text-muted">{event.type}</p>
+          <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
+            {event.type}
+            {event.verified === false &&
+            <span className="rounded-full bg-warning-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning">
+                Unconfirmed
+              </span>
+            }
+          </p>
           {onClose &&
           <button type="button" onClick={onClose} aria-label="Close details" className="-m-1.5 rounded-md p-1.5 text-muted hover:bg-canvas hover:text-ink">
               <XIcon className="h-5 w-5" aria-hidden="true" />
@@ -48,7 +55,7 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
         <div className="mt-5 flex items-baseline gap-2">
           {item.reasons.length > 0 ?
           <>
-              <span className="text-2xl font-semibold tabular-nums text-success-700">{item.score}%</span>
+              <span className={`text-2xl font-semibold tabular-nums ${scoreColorClass(item.score)}`}>{item.score}%</span>
               <span className="text-sm text-muted">match</span>
             </> :
 
@@ -140,6 +147,17 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
       </div>
 
       <div className="border-t border-line bg-white p-4">
+        {event.registrationUrl &&
+        <a
+          href={event.registrationUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-navy bg-white px-4 py-2.5 text-sm font-medium text-navy transition-colors duration-150 hover:bg-navy-50">
+
+            Register
+            <ExternalLinkIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          </a>
+        }
         <AddToCalendarButton item={item} added={added} onAdd={onAdd} fullWidth />
         {added &&
         <button type="button" onClick={onRemove} className="mt-2 w-full text-center text-sm text-muted transition-colors duration-150 hover:text-ink">

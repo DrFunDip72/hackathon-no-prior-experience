@@ -232,6 +232,22 @@ interface Event { /* … */
 { majors?: string[]; class_year?: string; employment_type?: 'internship' | 'full_time'; exclude_event_ids?: string[]; types?: string[]; limit?: number }
 ```
 
+**P1-8. `POST /subscriptions`: email alerts when a good match shows up.** The Events page now shows a "Nothing great for you this week" state with an email field when the top match scores under 25%. There's nowhere to send that email yet, so it's saved to `localStorage` only (`cc_match_subscriptions`, client-side, never sent anywhere) with an honest "coming soon" note on the page.
+```ts
+POST /subscriptions
+{ email: string; threshold: number /* e.g. 25 */; profile: <same contract as POST /recommendations> }
+→ { id: string }
+```
+Why: closes the loop on a weak-match week instead of leaving a dead end. Suggest: store the profile contract (not a user id, since we don't send one), re-run `recommend()` against it on a schedule (daily?), and email when a result clears `threshold`. No urgency for today's demo — the local-only version covers it.
+
+### Investigation: why a Product Manager profile scored low (~29%)
+
+Asked to check why a PM-focused profile got weak matches while others scored well. Three things, in order of how much each explains it:
+
+1. **Found and fixed a real classifier bug** (`api/src/classify.js`): the `product` field rule included a bare `\bpm\b`, meant to catch "PM" as in Product Manager. It also matches "PM" as in the clock — e.g. "Programs at 7:00 and 7:30 PM." on an unrelated FHE social event. Checked live data: **18 of 59 upcoming events were tagged `product`**, and the ones we sampled (`Amazing Race FHE`, `Craft Night: Paper Dinos`, `Homecoming Dance`, ...) are evening campus activities, not product-management content — their only "pm" is a start time. This doesn't explain a *low* score directly (if anything it's noise elsewhere), but it's a confirmed, cheap fix: field classification now strips clock-time mentions (`7:00 PM`, `7-9pm`, ...) before matching, so a bare time no longer triggers `product`. Added two regression tests (`api/test/scoring.test.js`) using the real "Amazing Race FHE" text. **Needs a Railway deploy of `api/` to take effect** — this session has no Railway access.
+2. **Found and fixed a real scoring gap** (`api/src/scoring.js`): `target_roles` (e.g. "Product Manager") only matched if that exact phrase appeared verbatim in an event's title/description. Since `classify.js` only ever tags the canonical field `"product"`, never the literal phrase "product manager", a PM student's role almost never matched even a correctly-classified product event. Now also matches word-aware against the event's own `fields` (same logic `profile.fields` already used), so "Product Manager" credits an event tagged `product`. Also needs a deploy.
+3. **Largely a data gap, not a mapping bug.** `toApiProfile` (`src/utils/backend.ts`) maps the Doorway profile reasonably: industries like "Product & Design" split into `["product", "design"]`, `lookingFor.roleTypes` and `education.major` flow into `fields`/`target_roles`. The real shortage is upstream: of the 11 companies currently live (Redo, Neighbor, Waystar, Qualtrics, Ensign Peak Advisors, HXP, Scalar, Layton Construction, Larry H. Miller Senior Health, Swire Coca-Cola, Sodexo, Disney College Program), none are notably PM-recruiting employers, so a PM student who targets typical PM employers (e.g. Adobe, Qualtrics, Domo — all in `src/data/employers.ts` but not yet in the live event companies list) gets few or no company matches, which dominates the score (+10 each vs. +3 per field). This is the P2-1 "more sources" gap, not something fixable from the front end.
+
 ### P2: later
 
 **P2-1. More sources** (in rough priority order):
@@ -268,5 +284,9 @@ interface Event { /* … */
 - `relevant_only: true`, results kept in API order, one request per page load or ranking-relevant profile change, error state with Retry.
 - `reason` is the headline on every card, detail sheet and the Profile card.
 - Matched companies are sorted first on the client (works around P0-3).
-- "People to meet" is hidden when there's no data, and the top card shows attending companies instead.
+- "People to meet" now populates from `people` when the API provides any (still hidden when empty, with the top card falling back to attending companies).
 - `source_url` is shown as "View original listing" and added to the Google Calendar event.
+- `registration_url` now shows a "Register" button; `verified: false` shows an "Unconfirmed" badge rather than hiding the event.
+- `GET /companies` is fetched once per session and used for employer color/industry on the fly; `GET /events?ids=` recovers a saved event that drops out of the ranked feed.
+- Match score color bands (red under 25%, orange 25-49%, yellow 50-64%, green 65%+) everywhere a score shows.
+- A "Nothing great for you this week" state with a local-only email signup when the top match scores under 25% (see P1-8).

@@ -71,6 +71,26 @@ test('field matching is word-aware and relevant_only drops unmatched noise', () 
   assert.deepEqual(recommend([noise, hackathon], p, { now, relevantOnly: true }).map((r) => r.event.title), ['CS Hackathon']);
 });
 
+test('classify does not mistake a clock time for the Product Manager abbreviation', async () => {
+  const { classify } = await import('../src/classify.js');
+  // Real example from the live calendar: an FHE activity whose only "pm" is its start time.
+  const fhe = classify('Amazing Race FHE', 'Families welcome. Programs at 7:00 and 7:30 PM. Refreshments provided.');
+  assert.ok(!fhe.fields.includes('product'), 'a clock time alone should not tag an event "product"');
+
+  const pm = classify('Product Night', 'Meet our PM team and learn what product managers do.');
+  assert.ok(pm.fields.includes('product'), 'a real PM mention should still tag the event "product"');
+});
+
+test('a target role matches an event by its classified field, not just a literal phrase', () => {
+  const productEvent = {
+    title: 'Qualtrics Product Night', start_at: '2026-10-05T18:00:00-06:00', type: 'networking',
+    companies: ['Qualtrics'], fields: ['product'], description: ''
+  };
+  // "Product Manager" never appears verbatim in the event text, only the classified field "product".
+  const p = { target_companies: [], target_roles: ['Product Manager'], fields: [] };
+  assert.deepEqual(scoreEvent(productEvent, p, { now }).matched_fields, ['product manager']);
+});
+
 test('in-progress events stay in the window and companies lead with matches', () => {
   const live = { ...hackathon, end_at: '2026-10-02T20:00:00-06:00', companies: ['Waystar', 'Neighbor', 'Redo'] };
   const later = new Date('2026-10-02T15:00:00-06:00');

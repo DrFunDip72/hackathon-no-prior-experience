@@ -5,6 +5,7 @@ import { AddToCalendarButton } from './AddToCalendarButton';
 import { Avatar } from '../ui/Avatar';
 import { EmployerLogo } from '../ui/EmployerLogo';
 import { formatDay, formatTimeRange } from '../../utils/dates';
+import { scoreColorClass } from '../../utils/matching';
 import type { ScoredEvent } from '../../types/event';
 
 interface EventCardProps {
@@ -24,7 +25,6 @@ function whyLine(item: ScoredEvent): string {
 
 export function EventCard({ item, variant, selected, added, googleConnected, onSelect, onAdd }: EventCardProps) {
   const { event } = item;
-  const strong = item.score >= 75;
   const frame = `cursor-pointer rounded-xl border bg-white transition-colors duration-150 ${
   selected ? 'border-navy ring-1 ring-navy' : 'border-line hover:border-navy-200'}`;
 
@@ -43,12 +43,17 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
             </h2>
             <p className="mt-2 text-sm text-muted">
               {event.type} · {formatDay(item.start)}, {formatTimeRange(item.start, item.end)} · {event.location}
+              {event.verified === false &&
+              <span className="ml-1.5 rounded-full bg-warning-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning">
+                  Unconfirmed
+                </span>
+              }
             </p>
           </div>
           <div className="shrink-0 text-right">
             {item.reasons.length > 0 ?
             <>
-                <p className="text-3xl font-semibold tabular-nums tracking-tight text-success-700">{item.score}%</p>
+                <p className={`text-3xl font-semibold tabular-nums tracking-tight ${scoreColorClass(item.score)}`}>{item.score}%</p>
                 <p className="text-xs text-muted">match</p>
               </> :
 
@@ -129,7 +134,7 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
       </div>
 
       <div className="flex shrink-0 flex-col items-end justify-between gap-3">
-        <span className={`text-base font-semibold tabular-nums ${item.reasons.length === 0 ? 'text-muted' : strong ? 'text-success-700' : 'text-muted'}`}>
+        <span className={`text-base font-semibold tabular-nums ${item.reasons.length === 0 ? 'text-muted' : scoreColorClass(item.score)}`}>
           {item.reasons.length > 0 ? `${item.score}%` : '—'}
         </span>
         <AddToCalendarButton item={item} added={added} onAdd={onAdd} size="sm" />
