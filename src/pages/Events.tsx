@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarIcon, RefreshCwIcon, SlidersHorizontalIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -33,6 +33,22 @@ export function Events() {
   // Without AI, an event with no match reasons (shown as "—") counts as no match, not a weak one.
   const noGoodMatches = tab === 'forYou' && list.length > 0 && !list.some(isGoodMatch);
   const aiRanked = list.some((i) => i.aiPercent !== undefined);
+
+  // Clicking "Events" (nav or logo) while already here is a navigation to the same path with a new key:
+  // go back to the default view, the "For you" tab at the top with no filters.
+  const { key: locationKey } = useLocation();
+  const firstLocation = useRef(locationKey);
+  useEffect(() => {
+    if (locationKey === firstLocation.current) return;
+    firstLocation.current = locationKey;
+    setTab('forYou');
+    setSelectedId(null);
+    setSheetOpen(false);
+    setFiltersOpen(false);
+    feed.resetFilters();
+    window.scrollTo({ top: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationKey]);
 
   useEffect(() => {
     if (!sheetOpen) return;
@@ -127,10 +143,10 @@ export function Events() {
               </span>
               <p className="text-sm text-ink">
                 <span className="font-medium">Connect Google Calendar</span>
-                <span className="text-muted"> to flag events that clash with your classes and shifts.</span>
+                <span className="text-muted"> (preview) to see how conflict checks work, using a sample class schedule.</span>
               </p>
             </div>
-            <Link to="/connect" className="shrink-0 rounded-lg bg-ink px-3.5 py-2 text-center text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
+            <Link to="/connect?from=events"className="shrink-0 rounded-lg bg-ink px-3.5 py-2 text-center text-sm font-medium text-white transition-colors duration-150 hover:bg-navy">
               Connect
             </Link>
           </div>
@@ -138,7 +154,7 @@ export function Events() {
         {feed.showingAllSources && !feed.loading &&
         <p className="mt-3 text-xs text-muted">
             Showing every public BYU calendar.{' '}
-            <Link to="/connect" className="font-medium text-navy hover:underline">
+            <Link to="/connect?from=events"className="font-medium text-navy hover:underline">
               Choose sources
             </Link>
           </p>

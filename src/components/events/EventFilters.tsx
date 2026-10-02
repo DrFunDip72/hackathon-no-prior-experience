@@ -124,7 +124,9 @@ export function EventFilters({ filters, onChange, onReset, filtersActive, availa
             label="Hide events that conflict with your schedule" />
           
         </div>
-        {!googleConnected && <p className="mt-1 text-xs text-muted">Needs Google Calendar.</p>}
+        <p className="mt-1 text-xs text-muted">
+          {googleConnected ? 'Preview: checks a sample class schedule.' : 'Preview: connect Google Calendar to check a sample class schedule.'}
+        </p>
       </div>
 
       {filtersActive &&
@@ -136,7 +138,7 @@ export function EventFilters({ filters, onChange, onReset, filtersActive, availa
       <div className="border-t border-line pt-5">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-semibold text-ink">Calendars</span>
-          <Link to="/connect" className="text-xs font-medium text-navy hover:underline">
+          <Link to="/connect?from=events"className="text-xs font-medium text-navy hover:underline">
             Manage
           </Link>
         </div>
@@ -147,6 +149,7 @@ export function EventFilters({ filters, onChange, onReset, filtersActive, availa
               <li key={s.id} className="flex items-center gap-2 text-sm">
                 <span className={`h-2 w-2 shrink-0 rounded-full ${on ? 'bg-success' : 'bg-line'}`} aria-hidden="true" />
                 <span className={`truncate ${on ? 'text-ink' : 'text-muted'}`}>{s.name}</span>
+                {s.status !== 'live' && <span className="shrink-0 text-xs text-muted">{s.status === 'preview' ? 'Preview' : 'Soon'}</span>}
                 <span className="sr-only">{on ? 'connected' : 'not connected'}</span>
               </li>);
 

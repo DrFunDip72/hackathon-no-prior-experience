@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarIcon, ExternalLinkIcon, GraduationCapIcon, MapPinIcon, XIcon } from 'lucide-react';
 import { AddToCalendarButton } from './AddToCalendarButton';
 import { EventBadges } from './EventBadges';
+import { MatchBreakdown } from './MatchBreakdown';
 import { PersonRow } from './PersonRow';
 import { EmployerLogo } from '../ui/EmployerLogo';
 import { campusTime, formatDay, formatClock, formatTimeRange, toMinutes } from '../../utils/dates';
@@ -49,9 +50,7 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
 
         <div className="mt-5 flex items-baseline gap-2">
           {match ?
-          <>
-              <span className={`text-xl font-semibold ${match.className}`}>{match.percent}%</span>
-            </> :
+          <MatchBreakdown item={item} className="text-xl font-semibold" align="left" /> :
 
           <>
               <span className="text-2xl font-semibold tabular-nums text-muted">—</span>
@@ -66,6 +65,7 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
         <section className="mt-6" aria-labelledby="day-heading">
           <h3 id="day-heading" className="text-sm font-semibold text-ink">
             Your day
+            {googleConnected && <span className="ml-1.5 text-xs font-normal text-muted">Preview · sample class schedule</span>}
           </h3>
           {googleConnected ?
           <ul className="mt-2 space-y-1.5">
@@ -86,14 +86,14 @@ export function EventDetail({ item, added, googleConnected, onAdd, onRemove, onC
                     <span className="truncate">{row.title}</span>
                   </li>
             )}
-              {day.length === 0 && <li className="text-sm text-muted">Nothing else on your calendar that day.</li>}
+              {day.length === 0 && <li className="text-sm text-muted">Nothing else on the sample schedule that day.</li>}
             </ul> :
 
           <p className="mt-2 text-sm text-muted">
-              <Link to="/connect" className="font-medium text-navy hover:underline">
+              <Link to="/connect?from=events"className="font-medium text-navy hover:underline">
                 Connect Google Calendar
               </Link>{' '}
-              to check this against your classes.
+              (preview) to check this against a sample class schedule.
             </p>
           }
         </section>

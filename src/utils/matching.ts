@@ -91,9 +91,9 @@ export const AI_STRONG_MATCH = 65;
 export const AI_GOOD_MATCH = 40;
 
 /**
- * The percent to show for a feed item, or null for "—". With an AI percent every event gets a number;
- * without it (AI unavailable), an event with no API match reasons stays "—" as before.
- * className still comes from matchLabel's thresholds, just the displayed text is the raw percent.
+ * The match percent to show for a feed item ("82%"), colored by matchLabel's thresholds, or null for "—".
+ * With an AI percent every event gets one; without it (AI unavailable), an event with no API match
+ * reasons stays "—" as before.
  */
 export function eventMatch(item: ScoredEvent): { percent: number; className: string } | null {
   if (item.aiPercent !== undefined) return { percent: item.aiPercent, className: matchLabel(item.aiPercent, true).className };

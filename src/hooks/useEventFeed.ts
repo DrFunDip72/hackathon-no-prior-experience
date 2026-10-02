@@ -124,8 +124,10 @@ export function useEventFeed() {
   }, [missingKey]);
 
   const googleConnected = Boolean(state.connections.google);
+  // Only live sources narrow the feed: someone who connected a "soon" source (Clubs, Athletics) earlier
+  // would otherwise get an empty feed, since no events come from it yet.
   const connectedSources = calendarSources.
-  filter((s) => s.provider === 'BYU' && state.connections[s.id]).
+  filter((s) => s.provider === 'BYU' && s.status === 'live' && state.connections[s.id]).
   map((s) => s.id as CalendarSourceId);
   const sourcesKey = connectedSources.join(',');
   const showingAllSources = connectedSources.length === 0;

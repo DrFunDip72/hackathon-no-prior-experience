@@ -2,6 +2,7 @@ import React from 'react';
 import { Availability } from './Availability';
 import { AddToCalendarButton } from './AddToCalendarButton';
 import { EventBadges } from './EventBadges';
+import { MatchBreakdown } from './MatchBreakdown';
 import { Avatar } from '../ui/Avatar';
 import { EmployerLogo } from '../ui/EmployerLogo';
 import { formatDay, formatDayOfMonth, formatMonth, formatTimeRange } from '../../utils/dates';
@@ -48,9 +49,7 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
           </div>
           <div className="shrink-0 text-right">
             {match ?
-            <>
-                <p className={`text-lg font-semibold tracking-tight sm:text-xl ${match.className}`}>{match.percent}%</p>
-              </> :
+            <MatchBreakdown item={item} className="text-lg font-semibold tracking-tight sm:text-xl" /> :
 
             <>
                 <p className="text-3xl font-semibold tabular-nums tracking-tight text-muted">—</p>
@@ -131,9 +130,7 @@ export function EventCard({ item, variant, selected, added, googleConnected, onS
       </div>
 
       <div className="flex shrink-0 flex-col items-end justify-between gap-3">
-        <span className={`whitespace-nowrap text-sm font-semibold ${match ? match.className : 'text-muted'}`}>
-          {match ? `${match.percent}%` : '—'}
-        </span>
+        <MatchBreakdown item={item} />
         <AddToCalendarButton item={item} added={added} onAdd={onAdd} size="sm" />
       </div>
     </article>);
