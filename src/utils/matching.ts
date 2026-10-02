@@ -105,30 +105,16 @@ export function isGoodMatch(item: ScoredEvent): boolean {
   return item.reasons.length > 0 && item.score >= GOOD_MATCH;
 }
 
-/** Below this AI percent an event is off-topic for the student (FHE nights, dances score ~10), unless a target company attends. */
+/** Below this AI percent an event is off-topic for the student, unless a target company attends. */
 export const AI_HIDE_BELOW = 20;
 
-/** Clearly non-career campus events (ward/stake socials, devotionals, dances). */
-const NON_CAREER =
-/\bFHE\b|family home evening|\bdevotional\b|\bcraft night\b|\bgame night\b|\bdances?\b|\bward (?:activity|social)\b|\bstake (?:activity|social|dance)\b/i;
-
 /**
- * Title always; description only when no company is listed, so a career event that merely mentions
- * "after the devotional" in its blurb isn't dropped.
- */
-function looksNonCareer(item: ScoredEvent): boolean {
-  if (NON_CAREER.test(item.event.title)) return true;
-  return item.employers.length === 0 && NON_CAREER.test(item.event.description);
-}
-
-/**
- * True for events the feed hides: the AI rates them off-topic, or they're plainly not career events
- * (works without AI). A target company attending always keeps an event.
+ * True for events the AI rates off-topic. A target company attending always keeps an event.
+ * Non-career events (FHE, devotionals, dances) are dropped by the API at ingest, so there's no client filter for them.
  */
 export function isHiddenFromFeed(item: ScoredEvent): boolean {
   if (item.targetCompanies.length) return false;
-  if (item.aiPercent !== undefined && item.aiPercent < AI_HIDE_BELOW) return true;
-  return looksNonCareer(item);
+  return item.aiPercent !== undefined && item.aiPercent < AI_HIDE_BELOW;
 }
 
 /** Class schedule blocks are campus wall-clock times, so compare in campus time. */

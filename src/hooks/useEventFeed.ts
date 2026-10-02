@@ -175,7 +175,7 @@ export function useEventFeed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [allScored, sourcesKey]
   );
-  // Off-topic events (FHE nights, dances, AI percent < 20) leave the feed; "My plan" below still shows saved ones.
+  // Off-topic events (AI percent < 20) leave the feed; "My plan" below still shows saved ones.
   const scored = useMemo(() => fromSources.filter((s) => !isHiddenFromFeed(s)), [fromSources]);
 
   const items = useMemo(
