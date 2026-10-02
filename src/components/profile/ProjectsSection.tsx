@@ -63,7 +63,7 @@ export function ProjectsSection({ profile, editable, onSave }: SectionProps) {
           </button>
         </div> :
       profile.projects.length === 0 ?
-      <button type="button" onClick={ed.start} className="text-sm font-medium text-navy hover:underline">
+      <button type="button" onClick={ed.start} className="tap-target text-sm font-medium text-navy hover:underline">
           Add a project
         </button> :
 

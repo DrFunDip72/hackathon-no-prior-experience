@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRightIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,6 +12,7 @@ import { api } from '../utils/api';
 import type { CalendarId, CalendarSource } from '../types/calendar';
 
 export function Connect() {
+  usePageTitle('Connect calendars');
   const { state, updateState } = useSession();
   const [consentFor, setConsentFor] = useState<CalendarSource | null>(null);
   const [syncing, setSyncing] = useState<Partial<Record<CalendarId, boolean>>>({});

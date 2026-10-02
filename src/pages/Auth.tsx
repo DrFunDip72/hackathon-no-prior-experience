@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Loader2Icon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,6 +15,7 @@ type Errors = Partial<Record<ApiField | 'form', string>>;
 
 /** Log in for returning students. New students create their account at the end of onboarding. */
 export function Auth() {
+  usePageTitle('Log in');
   const { logIn, googleSignIn, saveProfile } = useSession();
   const navigate = useNavigate();
   const location = useLocation();

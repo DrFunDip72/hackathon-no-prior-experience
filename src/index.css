@@ -19,6 +19,30 @@ body {
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
 }
+
+/* One focus ring for keyboard users everywhere. Components that draw their own focus-visible ring keep it. */
+:focus-visible {
+  outline: 2px solid #002e5d;
+  outline-offset: 2px;
+}
+
+/*
+ * A 44px minimum tap target without changing how the control looks: an invisible hit area centered
+ * on the element. :where() keeps the position at zero specificity, so `absolute` and friends still win.
+ */
+:where(.tap-target) {
+  position: relative;
+}
+.tap-target::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

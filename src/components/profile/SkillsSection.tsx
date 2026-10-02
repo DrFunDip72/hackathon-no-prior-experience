@@ -65,7 +65,7 @@ export function SkillsSection({ profile, editable, onSave }: SectionProps) {
           </button>
         </div> :
       profile.skillGroups.length === 0 ?
-      <button type="button" onClick={ed.start} className="text-sm font-medium text-navy hover:underline">
+      <button type="button" onClick={ed.start} className="tap-target text-sm font-medium text-navy hover:underline">
           Add skills
         </button> :
 

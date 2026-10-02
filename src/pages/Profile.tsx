@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRightIcon, EyeIcon, EyeOffIcon, RefreshCwIcon } from 'lucide-react';
@@ -21,6 +22,7 @@ import { eventMatch } from '../utils/matching';
 import type { Profile as ProfileData } from '../types/profile';
 
 export function Profile() {
+  usePageTitle('Your profile');
   const { state, saveProfile, updateState } = useSession();
   const profile = state.profile as ProfileData;
   const [preview, setPreview] = useState(false);
@@ -68,7 +70,7 @@ export function Profile() {
         }
       </AnimatePresence>
 
-      <main className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_300px]">
+      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-4">
           {preview && !profile.visibleToEmployers ?
           <section className="rounded-xl border border-line bg-white px-6 py-16 text-center">

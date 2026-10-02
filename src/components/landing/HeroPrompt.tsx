@@ -48,7 +48,7 @@ export function HeroPrompt({ destination }: {destination: string;}) {
             }
           }}
           placeholder="Tell us what you’re looking for… e.g. a UX internship, and I’d love to meet people from Qualtrics"
-          className="w-full resize-none bg-transparent px-2 py-1.5 text-base text-ink placeholder:text-muted/70 focus:outline-none" />
+          className="w-full resize-none bg-transparent px-2 py-1.5 text-base text-ink placeholder:text-muted/70" />
         
         <div className="flex items-center justify-between pt-1">
           {canUpload && upload.input}

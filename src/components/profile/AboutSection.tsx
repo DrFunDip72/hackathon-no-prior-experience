@@ -24,7 +24,7 @@ export function AboutSection({ profile, editable, onSave }: SectionProps) {
       profile.summary ?
       <p className="max-w-prose whitespace-pre-wrap leading-relaxed text-ink">{profile.summary}</p> :
 
-      <button type="button" onClick={ed.start} className="text-sm font-medium text-navy hover:underline">
+      <button type="button" onClick={ed.start} className="tap-target text-sm font-medium text-navy hover:underline">
           Add a short summary
         </button>
       }

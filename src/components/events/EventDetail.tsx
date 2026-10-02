@@ -32,7 +32,7 @@ export function EventDetail({ item, added, schedule, onAdd, onRemove, onClose }:
         <div className="flex items-start justify-between gap-3">
           <p className="text-xs font-medium text-muted">{event.type}</p>
           {onClose &&
-          <button type="button" onClick={onClose} aria-label="Close details" className="-m-1.5 rounded-md p-1.5 text-muted hover:bg-canvas hover:text-ink">
+          <button type="button" onClick={onClose} aria-label="Close details" className="tap-target -m-1.5 rounded-md p-1.5 text-muted hover:bg-canvas hover:text-ink">
               <XIcon className="h-5 w-5" aria-hidden="true" />
             </button>
           }

@@ -12,6 +12,7 @@ import { Connect } from './pages/Connect';
 import { Employer } from './pages/Employer';
 import { EmployerMatches } from './pages/EmployerMatches';
 import { EmployerStudent } from './pages/EmployerStudent';
+import { NotFound } from './pages/NotFound';
 
 export function App() {
   return (
@@ -30,7 +31,7 @@ export function App() {
           <Route path="/employer" element={<Employer />} />
           <Route path="/employer/matches" element={<EmployerMatches />} />
           <Route path="/employer/students/:id" element={<EmployerStudent />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="bottom-center" toastOptions={{ style: { fontFamily: 'Inter, system-ui, sans-serif' } }} />
