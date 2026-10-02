@@ -46,7 +46,9 @@ const TIMEOUT_MS = 50_000;
 // Tried in order. Gemini often answers 503 "high demand" on one model while others are fine,
 // so an overloaded or rate-limited model falls through to the next instead of failing the demo.
 // 404 is included because Google retires model names for new keys.
-const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
+// Lite first: it's the fastest and was the one answering reliably during testing.
+const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.8-flash'];
+const PER_MODEL_TIMEOUT_MS = 18_000;
 const RETRYABLE_STATUS = new Set([404, 429, 500, 503]);
 const geminiUrl = (model: string) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
@@ -203,9 +205,24 @@ function uniqueList(items: string[]): string[] {
     });
 }
 
+// Class standing from the graduation year, computed here because fast models get it wrong.
+// The school year runs August to April, so from August 2026 on, the class of 2027 is senior.
+function yearFromGraduation(gradYear: string, fallback: ResumeExtract['year']): ResumeExtract['year'] {
+  const grad = Number(gradYear.match(/\b(19|20)\d{2}\b/)?.[0]);
+  if (!grad) return fallback;
+  const now = new Date();
+  const springOfThisSchoolYear = now.getMonth() >= 7 ? now.getFullYear() + 1 : now.getFullYear();
+  const yearsLeft = grad - springOfThisSchoolYear;
+  if (yearsLeft < 0) return 'Alumni';
+  if (yearsLeft > 3) return fallback;
+  if (fallback === 'Graduate student') return fallback;
+  return (['Senior', 'Junior', 'Sophomore', 'Freshman'] as const)[yearsLeft];
+}
+
 function tidy(r: ResumeExtract): ResumeExtract {
   return {
     ...r,
+    year: yearFromGraduation(r.education.gradYear, r.year),
     name: r.name.trim(),
     email: r.email.trim(),
     headline: r.headline.trim(),
@@ -294,12 +311,20 @@ export async function POST(request: Request): Promise<Response> {
     });
     let res: Response | undefined;
     for (const model of GEMINI_MODELS) {
-      res = await fetch(geminiUrl(model), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        signal: controller.signal,
-        body: requestBody
-      });
+      try {
+        res = await fetch(geminiUrl(model), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          // A busy model can hang instead of answering 503, so each model gets its own time limit.
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(PER_MODEL_TIMEOUT_MS)]),
+          body: requestBody
+        });
+      } catch (error) {
+        if (controller.signal.aborted) throw error;
+        console.warn(`parse-resume: ${model} took too long, trying the next model`);
+        res = undefined;
+        continue;
+      }
       if (!RETRYABLE_STATUS.has(res.status)) break;
       console.warn(`parse-resume: ${model} answered ${res.status}, trying the next model`);
     }
