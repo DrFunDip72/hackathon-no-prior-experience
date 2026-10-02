@@ -220,5 +220,6 @@ Add a line to the changelog below for each change.
 
 ## Changelog
 
-- 2026-10-02: Added the BYU Career Services sheet source (17 October events: Boeing, Sodexo, Ensign Peak, HXP, Disney College Program, and more) and corrected the docs: responses are UTC, display in America/Denver. Known overlap: the sheet's "Homecoming Hackathon" (Oct 2, ESC Annex, 8 AM-8 PM) and the seeded "CS Hackathon" (Oct 2, TMCB, with Redo/Neighbor/Waystar) may be the same event under two names; they are stored separately until confirmed.
+- 2026-10-02: Added the BYU Career Services sheet source (17 October events: Boeing, Sodexo, Ensign Peak, HXP, Disney College Program, and more) and corrected the docs: responses are UTC, display in America/Denver. The seeded "CS Hackathon" was confirmed to be the sheet's "Homecoming Hackathon" (Oct 2, ESC Annex, 8 AM-8 PM) and was renamed to match, keeping its Redo/Neighbor/Waystar sponsors.
+- 2026-10-02: Upserts now **union** `companies` and `fields` instead of overwriting, so curated sponsors survive re-ingests from sources that don't list them (side effect: a company can't be removed by re-ingesting; delete or edit the row). `seed.js` also deletes retired seed rows listed in `retiredEvents`.
 - 2026-10-02: Initial API: `/health`, `/events`, `/recommendations`, `/submit`; BYU Calendar ingest (daily); 17 seed events; front-end adapter behind `VITE_API_URL`; `relevant_only` option and word-aware field matching.
