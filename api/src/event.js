@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { canonicalCompany, isProgram, sortNames } from './aliases.js';
 
 export const TYPES = ['career_fair', 'hackathon', 'info_session', 'lecture', 'tabling', 'club_event', 'case_competition', 'networking', 'other'];
-export const SOURCES = ['byu_calendar', 'cs_dept', 'careerlaunch', 'rollins', 'byusa', 'clubs', 'handshake_manual', 'email', 'user_submission'];
+export const SOURCES = ['byu_calendar', 'cs_dept', 'careerlaunch', 'rollins', 'byusa', 'clubs', 'handshake_manual', 'email', 'slack', 'user_submission'];
 export const PERSON_KINDS = ['recruiter', 'alumni', 'speaker', 'club_lead', 'host'];
 
 // sha256(lower(title) + date(start) + lower(location)); date is the local (Denver) calendar date.
@@ -77,7 +77,7 @@ export function toEventRow(input) {
     source_url: input.source_url ?? null,
     description: input.description ?? null,
     // Events that came from a person or an LLM reading a message are unconfirmed until a trusted source lists them.
-    verified: input.verified ?? !['user_submission', 'email'].includes(source),
+    verified: input.verified ?? !['user_submission', 'email', 'slack'].includes(source),
     people: normalizePeople(input.people),
     registration_url: input.registration_url ?? null,
     rsvp_required: input.rsvp_required ?? null,

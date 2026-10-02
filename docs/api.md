@@ -97,12 +97,23 @@ Ranks events for one student. Request body is the **profile contract** plus opti
 
 Response: `Recommendation[]`, sorted by `score` descending, events scoring below 1 excluded.
 
+### `POST /submit/bulk`
+Pulls **many** events out of one pasted dump (e.g. messages copied from a Slack channel) using the LLM, and stores them. **Not for the public front end**: it needs the `x-submit-token` header (or `Authorization: Bearer <token>`) matching the server's `SUBMIT_TOKEN`, and is limited to 30 requests per hour per client. With no `SUBMIT_TOKEN` configured it is off (503).
+
+Body: `{ "text": "<pasted messages>", "source": "slack" }` (`source` optional, default `user_submission`; max ~200,000 characters). Response: `{ "saved": n, "skipped": ["Old Fair: already past", ...], "events": Event[] }`.
+- Only career events are kept (career fairs, info sessions, networking, hackathons, case competitions, tabling, speakers); job postings and chatter are ignored. Dates without a year mean the next occurrence.
+- Stored events are `verified: false` and carry the model's short summary as `description` plus the message's link as `registration_url`. **Poster names and the raw messages are never stored.** Past events and events with no readable date are skipped and reported.
+- Errors: `401` wrong/missing token, `503` token or `ANTHROPIC_API_KEY` not configured, `422` unreadable model output, `429` rate limited.
+
+### `GET /paste`
+A small web page (`api/src/paste.html`) for the owner: enter the submit token once (kept in that browser), paste Slack messages, click Extract. It calls `/submit/bulk` with `source: "slack"`. Not linked from anywhere; `noindex`.
+
 ### `POST /submit`
 Turns pasted text (an email, a flyer's text) or a flyer photo into a stored event using an LLM.
 
 Body: `{ "text": "..." }` or `{ "image_base64": "<base64>", "media_type": "image/jpeg" }` (optionally both).
 Response: `{ "event": Event, "extracted": true|false }`. `extracted: false` means the model's output could not be parsed, so the event was stored with empty `companies`/`fields` and the first line of the text as its title.
-Errors: `422` if no title and start time could be found; `500` if `ANTHROPIC_API_KEY` is not configured on the server (**currently not set**, so `/submit` will fail until it is).
+Needs the same `x-submit-token` as `/submit/bulk`. Errors: `401`/`503`/`429` as above, `422` if no title and start time could be found, and `503` if `ANTHROPIC_API_KEY` is not configured on the server (**currently not set**, so both submit endpoints return 503 until it is).
 Submitted events have `source: "user_submission"`. Body size limit is about 12 MB.
 
 ---
@@ -137,7 +148,7 @@ type EventType = 'career_fair' | 'hackathon' | 'info_session' | 'lecture' | 'tab
                | 'club_event' | 'case_competition' | 'networking' | 'other';
 
 type Source = 'byu_calendar' | 'cs_dept' | 'careerlaunch' | 'rollins' | 'byusa'
-            | 'clubs' | 'handshake_manual' | 'email' | 'user_submission';
+            | 'clubs' | 'handshake_manual' | 'email' | 'slack' | 'user_submission';
 
 interface EventPerson {
   id: string;                    // "per_<8 hex>", stable per name + company
@@ -243,7 +254,7 @@ Deploy (from the repo root, with the Railway CLI linked to the project):
 railway up ./api --path-as-root --service doorway-api --ci
 ```
 
-`--path-as-root` matters: without it the CLI uploads the whole repo and builds the front end instead. The start command runs migrations, optionally seeds (`SEED_ON_START`), then starts the server. Service variables: `DATABASE_URL` (reference to the Postgres service), `SEED_ON_START`, `INGEST_BYU`, `INGEST_SHEET_BASE` (published sheet base URL), `INGEST_SHEET_URLS` (optional explicit CSV links), `INGEST_CS`, optional `SHEET_PAGE_URL`, and `ANTHROPIC_API_KEY` (not set yet; optional `EXTRACT_MODEL`, default `claude-haiku-4-5-20251001`). Never commit keys; set them with `railway variables`.
+`--path-as-root` matters: without it the CLI uploads the whole repo and builds the front end instead. The start command runs migrations, optionally seeds (`SEED_ON_START`), then starts the server. Service variables: `DATABASE_URL` (reference to the Postgres service), `SEED_ON_START`, `INGEST_BYU`, `INGEST_SHEET_BASE` (published sheet base URL), `INGEST_SHEET_URLS` (optional explicit CSV links), `INGEST_CS`, `SUBMIT_TOKEN` (required for `/submit` and `/submit/bulk`; read it with `railway variables --service doorway-api`), optional `SHEET_PAGE_URL`, and `ANTHROPIC_API_KEY` (not set yet; optional `EXTRACT_MODEL`, default `claude-haiku-4-5-20251001`). Never commit keys; set them with `railway variables`.
 
 ---
 
@@ -268,6 +279,7 @@ Add a line to the changelog below for each change.
 
 ## Changelog
 
+- 2026-10-02: BYU IS Slack source, built for a workspace where custom apps are blocked: `POST /submit/bulk` (many events from a pasted dump) and the `/paste` page. Submit endpoints now require `SUBMIT_TOKEN` and are rate limited (they spend LLM credit); fail closed if the token is unset. New `slack` source value. Needs `ANTHROPIC_API_KEY` to actually extract (503 until set).
 - 2026-10-02: Front-end team's requests (see `docs/api-requests.md`): `/events` and `/recommendations` now include events still in progress; `verified` flag (false for submissions and unconfirmed rows); `companies` cleaned (deduped, alphabetical, matched-first in `/recommendations`, subtitles like "- Networking Readiness" stripped, graduate programs moved to new `programs`); new `people`, `registration_url`, `rsvp_required`, `registration_deadline` fields (empty until a source provides them; upserts only fill gaps); new `GET /events/:id`, `GET /events?ids=`, `GET /companies`. Upserts merge `verified` as "verified once any trusted source lists it".
 - 2026-10-02: Added the CS department source (`ingest-cs.js`: listing, event pages, per-event ICS) and automatic sheet tab discovery (the September tab added 5 events). BYU Calendar events are now classified using their `TagsNames` too. Removed the 16 fake placeholder seed events; the only seed left is the real Homecoming Hackathon with its sponsors. The live event count is now about 80 for Sep 1 to Dec 31.
 - 2026-10-02: Added the BYU Career Services sheet source (17 October events: Boeing, Sodexo, Ensign Peak, HXP, Disney College Program, and more) and corrected the docs: responses are UTC, display in America/Denver. The seeded "CS Hackathon" was confirmed to be the sheet's "Homecoming Hackathon" (Oct 2, ESC Annex, 8 AM-8 PM) and was renamed to match, keeping its Redo/Neighbor/Waystar sponsors.
